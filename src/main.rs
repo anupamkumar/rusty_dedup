@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::{BufWriter, Read, Seek, SeekFrom, Write};
+#[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -730,6 +731,48 @@ pub fn analyze_filename_creator_and_subject(
     let sequel_markers = extract_sequel_markers(&subject_tokens);
 
     (detected_creator, subject, sequel_markers)
+}
+
+/// Cross-platform `(dev_id, inode, mtime_secs)` extraction.
+/// - Unix (macOS/Linux): exact OS `st_dev`, `st_ino`, `st_mtime`.
+/// - Windows: deterministic 64-bit volume-prefix hash (`dev_id`), canonical path hash (`inode`),
+///   and `modified()` Unix timestamp (`mtime_secs`).
+#[cfg(unix)]
+fn file_dev_inode_mtime(_path: &Path, meta: &fs::Metadata) -> (u64, u64, i64) {
+    (meta.dev(), meta.ino(), meta.mtime())
+}
+
+#[cfg(not(unix))]
+fn file_dev_inode_mtime(path: &Path, meta: &fs::Metadata) -> (u64, u64, i64) {
+    let canonical = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let prefix_str = canonical
+        .components()
+        .next()
+        .map(|c| c.as_os_str().to_string_lossy().to_lowercase())
+        .unwrap_or_else(|| "default_vol".to_string());
+    let dev_hash = blake3::hash(prefix_str.as_bytes());
+    let dev_bytes = dev_hash.as_bytes();
+    let dev_id = u64::from_le_bytes([
+        dev_bytes[0], dev_bytes[1], dev_bytes[2], dev_bytes[3],
+        dev_bytes[4], dev_bytes[5], dev_bytes[6], dev_bytes[7],
+    ]);
+
+    let path_norm = canonical.to_string_lossy().to_lowercase();
+    let ino_hash = blake3::hash(path_norm.as_bytes());
+    let ino_bytes = ino_hash.as_bytes();
+    let ino = u64::from_le_bytes([
+        ino_bytes[0], ino_bytes[1], ino_bytes[2], ino_bytes[3],
+        ino_bytes[4], ino_bytes[5], ino_bytes[6], ino_bytes[7],
+    ]);
+
+    let mtime = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+
+    (dev_id, ino, mtime)
 }
 
 fn is_video_file(path: &Path) -> bool {
@@ -1843,10 +1886,8 @@ fn main() -> Result<()> {
                 continue;
             }
             if let Ok(meta) = entry.metadata() {
-                let dev = meta.dev();
-                let ino = meta.ino();
+                let (dev, ino, mtime) = file_dev_inode_mtime(path, &meta);
                 let size = meta.len();
-                let mtime = meta.mtime();
                 if size == 0 {
                     continue;
                 }

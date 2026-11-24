@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::{Read, Write};
+#[cfg(unix)]
 use std::os::unix::fs::{MetadataExt, symlink};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -575,6 +576,40 @@ fn normalize_dir_path_cached(path: &Path, cache: &mut HashMap<PathBuf, PathBuf>)
     resolved
 }
 
+#[cfg(unix)]
+fn file_dev_inode(_path: &Path, meta: &fs::Metadata) -> (u64, u64) {
+    (meta.dev(), meta.ino())
+}
+
+#[cfg(not(unix))]
+fn file_dev_inode(path: &Path, _meta: &fs::Metadata) -> (u64, u64) {
+    let canonical = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let prefix_str = canonical
+        .components()
+        .next()
+        .map(|c| c.as_os_str().to_string_lossy().to_lowercase())
+        .unwrap_or_else(|| "default_vol".to_string());
+    let dev_hash = blake3::hash(prefix_str.as_bytes());
+    let db = dev_hash.as_bytes();
+    let dev = u64::from_le_bytes([db[0], db[1], db[2], db[3], db[4], db[5], db[6], db[7]]);
+
+    let path_norm = canonical.to_string_lossy().to_lowercase();
+    let ino_hash = blake3::hash(path_norm.as_bytes());
+    let ib = ino_hash.as_bytes();
+    let ino = u64::from_le_bytes([ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]]);
+    (dev, ino)
+}
+
+#[cfg(unix)]
+fn create_file_symlink(original: &Path, link: &Path) -> std::io::Result<()> {
+    symlink(original, link)
+}
+
+#[cfg(windows)]
+fn create_file_symlink(original: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::windows::fs::symlink_file(original, link)
+}
+
 /// Checks if two directory paths refer to the exact same directory on disk
 fn are_same_directory(
     dir_a: &Path,
@@ -587,7 +622,8 @@ fn are_same_directory(
     }
     if let Some((dev_b, ino_b)) = dir_id_b {
         if let Ok(meta_a) = fs::metadata(dir_a) {
-            if meta_a.dev() == dev_b && meta_a.ino() == ino_b {
+            let (dev_a, ino_a) = file_dev_inode(dir_a, &meta_a);
+            if dev_a == dev_b && ino_a == ino_b {
                 return true;
             }
         }
@@ -608,7 +644,7 @@ fn compute_unique_target_destination(
     let candidate = target_dir.join(file_name);
 
     let same_file_on_disk = match (fs::metadata(src), fs::metadata(&candidate)) {
-        (Ok(m1), Ok(m2)) => m1.dev() == m2.dev() && m1.ino() == m2.ino(),
+        (Ok(m1), Ok(m2)) => file_dev_inode(src, &m1) == file_dev_inode(&candidate, &m2),
         _ => false,
     };
 
@@ -1058,7 +1094,7 @@ fn main() -> Result<()> {
 
     let target_dir_id: Option<(u64, u64)> = target_dir
         .as_ref()
-        .and_then(|t| fs::metadata(t).ok().map(|m| (m.dev(), m.ino())));
+        .and_then(|t| fs::metadata(t).ok().map(|m| file_dev_inode(t, &m)));
 
     println!("================================================================================");
     println!(
@@ -1765,7 +1801,7 @@ fn main() -> Result<()> {
                                 if symlink_path.symlink_metadata().is_ok() {
                                     let _ = fs::remove_file(&symlink_path);
                                 }
-                                match symlink(&winner_orig_path, &symlink_path) {
+                                match create_file_symlink(&winner_orig_path, &symlink_path) {
                                     Ok(_) => {
                                         println!(
                                             "    ✗ DELETED & LINKED (different directory):\n      1. Deleted duplicate : {:?}\n      2. Created softlink  : {:?} -> {:?}",
@@ -1920,7 +1956,7 @@ fn main() -> Result<()> {
                 if meta.len() == 0 {
                     continue;
                 }
-                let inode_key = (meta.dev(), meta.ino());
+                let inode_key = file_dev_inode(path, &meta);
                 if !seen_non_dup_inodes.insert(inode_key) {
                     continue;
                 }
