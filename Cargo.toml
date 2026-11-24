@@ -1,0 +1,30 @@
+[package]
+name = "rusty_dedup"
+version = "0.1.0"
+edition = "2024"
+description = "High-performance duplicate video detector and cleanup CLI suite optimized for large multi-terabyte spinning HDD repositories"
+
+[[bin]]
+name = "rusty_dedup"
+path = "src/main.rs"
+
+[[bin]]
+name = "rusty_clean"
+path = "src/rusty_clean.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+blake3 = "1.5"
+walkdir = "2.5"
+rayon = "1.10"
+strsim = "0.11"
+anyhow = "1.0"
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true

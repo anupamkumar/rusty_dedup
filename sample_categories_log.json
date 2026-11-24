@@ -1,0 +1,102 @@
+[
+  {
+    "file1": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirA/Artist_One_-_Sunset_Clip.mp4",
+    "file2": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirA/subdir1/Artist_One_-_Sunset_Clip_copy.mp4",
+    "initial_category": "Strong chance of duplicate pair",
+    "final_outcome": "Confirmed duplicate file pair",
+    "confidence": 1.0,
+    "matched_frames": 12,
+    "compared_runtime_secs": 12,
+    "detection_method": "Exact size + BLAKE3 (3x64KB)"
+  },
+  {
+    "file1": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/Artist_One_-_Sunset_Clip_lowres.avi",
+    "file2": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirA/Artist_One_-_Sunset_Clip.mp4",
+    "initial_category": "Weak chance of duplicate pair",
+    "final_outcome": "Confirmed duplicate file pair",
+    "confidence": 1.0,
+    "matched_frames": 12,
+    "compared_runtime_secs": 12,
+    "detection_method": "1-fps 9x8 dHash + sliding window"
+  },
+  {
+    "file1": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/Artist_One_-_Sunset_Clip_lowres.avi",
+    "file2": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirA/subdir1/Artist_One_-_Sunset_Clip_copy.mp4",
+    "initial_category": "Weak chance of duplicate pair",
+    "final_outcome": "Confirmed duplicate file pair",
+    "confidence": 1.0,
+    "matched_frames": 12,
+    "compared_runtime_secs": 12,
+    "detection_method": "1-fps 9x8 dHash + sliding window"
+  },
+  {
+    "file1": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/Totally_Different_Video.mp4",
+    "file2": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirA/Artist_One_-_Sunset_Clip.mp4",
+    "initial_category": "Potentially distinct file pair",
+    "final_outcome": "Confirmed distinct file pair",
+    "confidence": 0.0,
+    "matched_frames": 0,
+    "compared_runtime_secs": 12,
+    "detection_method": "1-fps 9x8 dHash + sliding window"
+  },
+  {
+    "file1": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/Totally_Different_Video.mp4",
+    "file2": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirA/subdir1/Artist_One_-_Sunset_Clip_copy.mp4",
+    "initial_category": "Potentially distinct file pair",
+    "final_outcome": "Confirmed distinct file pair",
+    "confidence": 0.0,
+    "matched_frames": 0,
+    "compared_runtime_secs": 12,
+    "detection_method": "1-fps 9x8 dHash + sliding window"
+  },
+  {
+    "file1": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/Artist_One_-_Sunset_Clip_lowres.avi",
+    "file2": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/Totally_Different_Video.mp4",
+    "initial_category": "Potentially distinct file pair",
+    "final_outcome": "Confirmed distinct file pair",
+    "confidence": 0.0,
+    "matched_frames": 0,
+    "compared_runtime_secs": 12,
+    "detection_method": "1-fps 9x8 dHash + sliding window"
+  },
+  {
+    "file1": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/994821_random_name.mkv",
+    "file2": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/Totally_Different_Video.mp4",
+    "initial_category": "Potentially distinct file pair",
+    "final_outcome": "Confirmed distinct file pair",
+    "confidence": 0.0,
+    "matched_frames": 0,
+    "compared_runtime_secs": 11,
+    "detection_method": "1-fps 9x8 dHash + sliding window"
+  },
+  {
+    "file1": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/994821_random_name.mkv",
+    "file2": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirA/Artist_One_-_Sunset_Clip.mp4",
+    "initial_category": "Potentially distinct file pair",
+    "final_outcome": "Confirmed duplicate file pair",
+    "confidence": 1.0,
+    "matched_frames": 11,
+    "compared_runtime_secs": 11,
+    "detection_method": "1-fps 9x8 dHash + sliding window"
+  },
+  {
+    "file1": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/994821_random_name.mkv",
+    "file2": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirA/subdir1/Artist_One_-_Sunset_Clip_copy.mp4",
+    "initial_category": "Potentially distinct file pair",
+    "final_outcome": "Confirmed duplicate file pair",
+    "confidence": 1.0,
+    "matched_frames": 11,
+    "compared_runtime_secs": 11,
+    "detection_method": "1-fps 9x8 dHash + sliding window"
+  },
+  {
+    "file1": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/994821_random_name.mkv",
+    "file2": "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/Artist_One_-_Sunset_Clip_lowres.avi",
+    "initial_category": "Potentially distinct file pair",
+    "final_outcome": "Confirmed duplicate file pair",
+    "confidence": 1.0,
+    "matched_frames": 11,
+    "compared_runtime_secs": 11,
+    "detection_method": "1-fps 9x8 dHash + sliding window"
+  }
+]

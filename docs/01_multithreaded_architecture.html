@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>01_multithreaded_architecture</title>
+  <style id="theme-css">
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { background-color: #ffffff; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      font-size: 16px;
+      max-width: 960px; /* matches GitHub / VS Code markdown preview width */
+      margin: 0 auto;
+      padding: 46px 30px 4rem; /* as much room as Typora (GitHub theme): 30px at the sides, 30px + 16px above the first heading */
+      line-height: 1.6;
+      word-wrap: break-word;
+      color: #24292e;
+      background-color: #ffffff;
+    }
+    /* Block shapes (sizes, weights, spacing, borders, indents) follow GitHub (github-markdown-css 5.8.1); colors stay the theme's.
+       Body and table line height stay 1.6 rather than GitHub's 1.5, which is cramped for CJK text.
+       Spacing is the same margin above and below (adjacent margins collapse), which gives GitHub's gaps. */
+    #preview-content > :first-child { margin-top: 0 !important; }
+    #preview-content > :last-child { margin-bottom: 0 !important; }
+    h1 { font-size: 2em; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3em; }
+    h2 { font-size: 1.5em; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3em; }
+    h3 { font-size: 1.25em; }
+    h4 { font-size: 1em; }
+    h5 { font-size: 0.875em; }
+    h6 { font-size: 0.85em; }
+    h1, h2, h3, h4, h5, h6 { margin-top: 24px; margin-bottom: 16px; font-weight: 600; line-height: 1.25; scroll-margin-top: 1.5em; }
+    p { margin: 1em 0; }
+    /* Paragraphs inside list items have no margin; lists whose items are separated by blank lines (loose lists) get paragraph spacing. */
+    li > p { margin: 0; }
+    ul.list-loose > li > p, ol.list-loose > li > p { margin: 1em 0; }
+    ul.list-loose > li:first-child > p:first-child, ol.list-loose > li:first-child > p:first-child { margin-top: 0; }
+    ul.list-loose > li:last-child > p:last-child, ol.list-loose > li:last-child > p:last-child { margin-bottom: 0; }
+    ul, ol { margin: 1em 0; padding-left: 2em; }
+    ul ul, ul ol, ol ul, ol ol { margin: 0; }
+    ol ol, ul ol { list-style-type: lower-roman; }
+    ul ul ol, ul ol ol, ol ul ol, ol ol ol { list-style-type: lower-alpha; }
+    li + li { margin-top: 0.25em; }
+    b, strong { font-weight: 600; }
+    a { color: #0366d6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    a:visited { color: #6f42c1; }
+    code {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 0.875em;
+      color: #24292e;
+      background: #f6f8fa;
+      padding: 0.2em 0.4em;
+      border-radius: 6px;
+    }
+    /* The code block carries the code font size and line height, so the line pitch is the code size x 1.45 as on GitHub. */
+    pre {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 0.875em;
+      line-height: 1.45;
+      margin: 16px 0;
+      border-radius: 6px;
+      padding: 16px;
+      overflow-x: auto;
+    }
+    h1 code, h2 code, h3 code, h4 code, h5 code, h6 code { padding: 0 0.2em; font-size: inherit; }
+    pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+    /* With source lines, a code block is wrapped in a div ending in a line marker that stops margin collapsing,
+       so the wrapper takes the code block's margin (with the specificity of a bare div, so first and last child rules still win). */
+    div:where([data-source-line]:not([class])) { margin: 16px 0; }
+    div:where([data-source-line]:not([class])) > pre { margin: 0; }
+    kbd {
+      display: inline-block;
+      padding: 4px;
+      font: 11px 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      line-height: 10px;
+      vertical-align: middle;
+      background-color: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      box-shadow: inset 0 -1px 0 #e1e4e8;
+    }
+    table { border-collapse: collapse; display: block; width: 100%; overflow: auto; margin: 1em 0; word-break: keep-all; }
+    th, td { border: 1px solid #dfe2e5; padding: 6px 13px; text-align: left; }
+    th { background: #f6f8fa; font-weight: 600; }
+    tr:nth-child(even) { background: #fafbfc; }
+    blockquote {
+      border-left: 0.25em solid #dfe2e5;
+      margin: 1em 0; /* vertical margin so consecutive blockquotes stay separate, like GitHub */
+      padding: 0.5em 1em;
+      color: #6a737d;
+      background-color: #f6f8fa;
+    }
+    blockquote > :first-child { margin-top: 0; }
+    blockquote > :last-child { margin-bottom: 0; }
+    
+    .markdown-alert {
+      padding: 0.5em 1em;
+      margin: 1em 0;
+      border-left: 0.25em solid #0969da;
+      color: inherit;
+    }
+    .markdown-alert > :first-child { margin-top: 0; }
+    .markdown-alert > :last-child { margin-bottom: 0; }
+    .markdown-alert-title {
+      display: flex;
+      align-items: center;
+      font-weight: 500;
+      line-height: 1;
+      margin-bottom: 0.5em;
+    }
+    .markdown-alert-title .octicon {
+      margin-right: 0.5em;
+      fill: currentColor;
+      overflow: visible;
+      vertical-align: text-bottom;
+    }
+    .markdown-alert-note { border-left-color: #0969da; }
+    .markdown-alert-note > .markdown-alert-title { color: #0969da; }
+    .markdown-alert-tip { border-left-color: #1a7f37; }
+    .markdown-alert-tip > .markdown-alert-title { color: #1a7f37; }
+    .markdown-alert-important { border-left-color: #8250df; }
+    .markdown-alert-important > .markdown-alert-title { color: #8250df; }
+    .markdown-alert-warning { border-left-color: #9a6700; }
+    .markdown-alert-warning > .markdown-alert-title { color: #9a6700; }
+    .markdown-alert-caution { border-left-color: #d1242f; }
+    .markdown-alert-caution > .markdown-alert-title { color: #d1242f; }
+    hr { height: 0.25em; padding: 0; border: none; background-color: #e1e4e8; margin: 24px 0; overflow: hidden; }
+    img { max-width: 100%; height: auto; }
+    .plantuml-diagram { margin: 1.5em 0; text-align: left; width: fit-content; }
+    .plantuml-diagram svg { height: auto; }
+    .mermaid-diagram { margin: 1.5em 0; text-align: left; width: fit-content; }
+    .mermaid-diagram pre.mermaid { visibility: hidden; overflow: visible; border: none; margin: 0; padding: 0; font-size: inherit; line-height: inherit; }
+    .mermaid-diagram svg { visibility: visible; height: auto; }
+    .mermaid-error { visibility: visible; color: #d32f2f; border-left: 3px solid #d32f2f; padding: 0.5em; white-space: pre-wrap; font-size: 0.85em; }
+    .d2-diagram { margin: 1.5em 0; text-align: left; }
+    .d2-diagram pre.d2 { margin: 0; }
+    .d2-diagram svg { height: auto; }
+    .d2-error { color: #d32f2f; border-left: 3px solid #d32f2f; padding: 0.5em; white-space: pre-wrap; font-size: 0.85em; }
+    .katex { color: inherit; }
+    .katex-display { margin: 1em 0; overflow-x: auto; overflow-y: hidden; }
+    body.preview { margin: 0; max-width: none; padding: 46px 30px 1em; }
+    /* In print (PDF export, or printing an exported HTML file) the page margin takes the place of the room above the document. */
+    @media print { body { padding-top: 0; } }
+    .hljs { background: #f6f8fa; color: #24292e; }
+    .hljs-comment, .hljs-prolog, .hljs-doctype, .hljs-cdata { color: #6a737d; font-style: italic; }
+    .hljs-keyword, .hljs-selector-tag { color: #d73a49; }
+    .hljs-string, .hljs-doctag { color: #032f62; }
+    .hljs-number, .hljs-literal { color: #005cc5; }
+    .hljs-attr, .hljs-attribute { color: #005cc5; }
+    .hljs-name, .hljs-tag, .hljs-selector-id, .hljs-selector-class { color: #22863a; }
+    .hljs-title, .hljs-section, .hljs-function { color: #6f42c1; font-weight: bold; }
+    .hljs-built_in, .hljs-type { color: #e36209; }
+    .hljs-symbol, .hljs-bullet, .hljs-link { color: #0366d6; }
+    .hljs-meta { color: #e36209; }
+    .hljs-addition { background: #e6ffed; color: #22863a; }
+    .hljs-deletion { background: #ffeef0; color: #b31d28; }
+    .hljs-strong { font-weight: bold; }
+    .hljs-emphasis { font-style: italic; }
+    #toc-sidebar { background-color: #ffffff; color: #24292e; }
+    #toc-sidebar::before { background-color: #e1e4e8; }
+    #toc-sidebar .toc-toggle { color: #24292e; }
+    #toc-sidebar a { color: #0366d6; }
+    #toc-sidebar a:hover { background: #f6f8fa; }
+    #toc-sidebar a.active { color: #0366d6; border-left-color: #0366d6; }
+    #nav-toolbar button { color: #24292e; }
+    #nav-toolbar button:hover, #nav-toolbar button.active { background: #f6f8fa; }
+  </style>
+  <style id="katex-css">@font-face{font-display:block;font-family:KaTeX_AMS;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_AMS-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_AMS-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_AMS-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Caligraphic;font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Caligraphic-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Caligraphic-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Caligraphic-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Caligraphic;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Caligraphic-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Caligraphic-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Caligraphic-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Fraktur;font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Fraktur-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Fraktur-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Fraktur-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Fraktur;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Fraktur-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Fraktur-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Fraktur-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:italic;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-BoldItalic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-BoldItalic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-BoldItalic.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:italic;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Italic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Italic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Italic.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Math;font-style:italic;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Math-BoldItalic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Math-BoldItalic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Math-BoldItalic.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Math;font-style:italic;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Math-Italic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Math-Italic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Math-Italic.ttf) format("truetype")}@font-face{font-display:block;font-family:"KaTeX_SansSerif";font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:"KaTeX_SansSerif";font-style:italic;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Italic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Italic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Italic.ttf) format("truetype")}@font-face{font-display:block;font-family:"KaTeX_SansSerif";font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Script;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Script-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Script-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Script-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size1;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size1-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size1-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size1-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size2;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size2-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size2-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size2-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size3;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size3-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size3-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size3-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size4;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size4-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size4-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size4-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Typewriter;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Typewriter-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Typewriter-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Typewriter-Regular.ttf) format("truetype")}.katex{font:normal 1.21em KaTeX_Main,Times New Roman,serif;line-height:1.2;position:relative;text-indent:0;text-rendering:auto}.katex *{-ms-high-contrast-adjust:none!important;border-color:currentColor}.katex .katex-version:after{content:"0.16.47"}.katex .katex-mathml{border:0;-webkit-clip-path:inset(50%);clip-path:inset(50%);height:1px;overflow:hidden;padding:0;position:absolute;width:1px}.katex .katex-html>.newline{display:block}.katex .base{position:relative;white-space:nowrap;width:-webkit-min-content;width:-moz-min-content;width:min-content}.katex .base,.katex .strut{display:inline-block}.katex .textbf{font-weight:700}.katex .textit{font-style:italic}.katex .textrm{font-family:KaTeX_Main}.katex .textsf{font-family:KaTeX_SansSerif}.katex .texttt{font-family:KaTeX_Typewriter}.katex .mathnormal{font-family:KaTeX_Math;font-style:italic}.katex .mathit{font-family:KaTeX_Main;font-style:italic}.katex .mathrm{font-style:normal}.katex .mathbf{font-family:KaTeX_Main;font-weight:700}.katex .boldsymbol{font-family:KaTeX_Math;font-style:italic;font-weight:700}.katex .amsrm,.katex .mathbb,.katex .textbb{font-family:KaTeX_AMS}.katex .mathcal{font-family:KaTeX_Caligraphic}.katex .mathfrak,.katex .textfrak{font-family:KaTeX_Fraktur}.katex .mathboldfrak,.katex .textboldfrak{font-family:KaTeX_Fraktur;font-weight:700}.katex .mathtt{font-family:KaTeX_Typewriter}.katex .mathscr,.katex .textscr{font-family:KaTeX_Script}.katex .mathsf,.katex .textsf{font-family:KaTeX_SansSerif}.katex .mathboldsf,.katex .textboldsf{font-family:KaTeX_SansSerif;font-weight:700}.katex .mathitsf,.katex .mathsfit,.katex .textitsf{font-family:KaTeX_SansSerif;font-style:italic}.katex .mainrm{font-family:KaTeX_Main;font-style:normal}.katex .vlist-t{border-collapse:collapse;display:inline-table;table-layout:fixed}.katex .vlist-r{display:table-row}.katex .vlist{display:table-cell;position:relative;vertical-align:bottom}.katex .vlist>span{display:block;height:0;position:relative}.katex .vlist>span>span{display:inline-block}.katex .vlist>span>.pstrut{overflow:hidden;width:0}.katex .vlist-t2{margin-right:-2px}.katex .vlist-s{display:table-cell;font-size:1px;min-width:2px;vertical-align:bottom;width:2px}.katex .vbox{align-items:baseline;display:inline-flex;flex-direction:column}.katex .hbox{width:100%}.katex .hbox,.katex .thinbox{display:inline-flex;flex-direction:row}.katex .thinbox{max-width:0;width:0}.katex .msupsub{text-align:left}.katex .mfrac>span>span{text-align:center}.katex .mfrac .frac-line{border-bottom-style:solid;display:inline-block;width:100%}.katex .hdashline,.katex .hline,.katex .mfrac .frac-line,.katex .overline .overline-line,.katex .rule,.katex .underline .underline-line{min-height:1px}.katex .mspace{display:inline-block}.katex .smash{display:inline;line-height:0}.katex .clap,.katex .llap,.katex .rlap{position:relative;width:0}.katex .clap>.inner,.katex .llap>.inner,.katex .rlap>.inner{position:absolute}.katex .clap>.fix,.katex .llap>.fix,.katex .rlap>.fix{display:inline-block}.katex .llap>.inner{right:0}.katex .clap>.inner,.katex .rlap>.inner{left:0}.katex .clap>.inner>span{margin-left:-50%;margin-right:50%}.katex .rule{border:0 solid;display:inline-block;position:relative}.katex .hline,.katex .overline .overline-line,.katex .underline .underline-line{border-bottom-style:solid;display:inline-block;width:100%}.katex .hdashline{border-bottom-style:dashed;display:inline-block;width:100%}.katex .sqrt>.root{margin-left:.2777777778em;margin-right:-.5555555556em}.katex .fontsize-ensurer.reset-size1.size1,.katex .sizing.reset-size1.size1{font-size:1em}.katex .fontsize-ensurer.reset-size1.size2,.katex .sizing.reset-size1.size2{font-size:1.2em}.katex .fontsize-ensurer.reset-size1.size3,.katex .sizing.reset-size1.size3{font-size:1.4em}.katex .fontsize-ensurer.reset-size1.size4,.katex .sizing.reset-size1.size4{font-size:1.6em}.katex .fontsize-ensurer.reset-size1.size5,.katex .sizing.reset-size1.size5{font-size:1.8em}.katex .fontsize-ensurer.reset-size1.size6,.katex .sizing.reset-size1.size6{font-size:2em}.katex .fontsize-ensurer.reset-size1.size7,.katex .sizing.reset-size1.size7{font-size:2.4em}.katex .fontsize-ensurer.reset-size1.size8,.katex .sizing.reset-size1.size8{font-size:2.88em}.katex .fontsize-ensurer.reset-size1.size9,.katex .sizing.reset-size1.size9{font-size:3.456em}.katex .fontsize-ensurer.reset-size1.size10,.katex .sizing.reset-size1.size10{font-size:4.148em}.katex .fontsize-ensurer.reset-size1.size11,.katex .sizing.reset-size1.size11{font-size:4.976em}.katex .fontsize-ensurer.reset-size2.size1,.katex .sizing.reset-size2.size1{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size2.size2,.katex .sizing.reset-size2.size2{font-size:1em}.katex .fontsize-ensurer.reset-size2.size3,.katex .sizing.reset-size2.size3{font-size:1.1666666667em}.katex .fontsize-ensurer.reset-size2.size4,.katex .sizing.reset-size2.size4{font-size:1.3333333333em}.katex .fontsize-ensurer.reset-size2.size5,.katex .sizing.reset-size2.size5{font-size:1.5em}.katex .fontsize-ensurer.reset-size2.size6,.katex .sizing.reset-size2.size6{font-size:1.6666666667em}.katex .fontsize-ensurer.reset-size2.size7,.katex .sizing.reset-size2.size7{font-size:2em}.katex .fontsize-ensurer.reset-size2.size8,.katex .sizing.reset-size2.size8{font-size:2.4em}.katex .fontsize-ensurer.reset-size2.size9,.katex .sizing.reset-size2.size9{font-size:2.88em}.katex .fontsize-ensurer.reset-size2.size10,.katex .sizing.reset-size2.size10{font-size:3.4566666667em}.katex .fontsize-ensurer.reset-size2.size11,.katex .sizing.reset-size2.size11{font-size:4.1466666667em}.katex .fontsize-ensurer.reset-size3.size1,.katex .sizing.reset-size3.size1{font-size:.7142857143em}.katex .fontsize-ensurer.reset-size3.size2,.katex .sizing.reset-size3.size2{font-size:.8571428571em}.katex .fontsize-ensurer.reset-size3.size3,.katex .sizing.reset-size3.size3{font-size:1em}.katex .fontsize-ensurer.reset-size3.size4,.katex .sizing.reset-size3.size4{font-size:1.1428571429em}.katex .fontsize-ensurer.reset-size3.size5,.katex .sizing.reset-size3.size5{font-size:1.2857142857em}.katex .fontsize-ensurer.reset-size3.size6,.katex .sizing.reset-size3.size6{font-size:1.4285714286em}.katex .fontsize-ensurer.reset-size3.size7,.katex .sizing.reset-size3.size7{font-size:1.7142857143em}.katex .fontsize-ensurer.reset-size3.size8,.katex .sizing.reset-size3.size8{font-size:2.0571428571em}.katex .fontsize-ensurer.reset-size3.size9,.katex .sizing.reset-size3.size9{font-size:2.4685714286em}.katex .fontsize-ensurer.reset-size3.size10,.katex .sizing.reset-size3.size10{font-size:2.9628571429em}.katex .fontsize-ensurer.reset-size3.size11,.katex .sizing.reset-size3.size11{font-size:3.5542857143em}.katex .fontsize-ensurer.reset-size4.size1,.katex .sizing.reset-size4.size1{font-size:.625em}.katex .fontsize-ensurer.reset-size4.size2,.katex .sizing.reset-size4.size2{font-size:.75em}.katex .fontsize-ensurer.reset-size4.size3,.katex .sizing.reset-size4.size3{font-size:.875em}.katex .fontsize-ensurer.reset-size4.size4,.katex .sizing.reset-size4.size4{font-size:1em}.katex .fontsize-ensurer.reset-size4.size5,.katex .sizing.reset-size4.size5{font-size:1.125em}.katex .fontsize-ensurer.reset-size4.size6,.katex .sizing.reset-size4.size6{font-size:1.25em}.katex .fontsize-ensurer.reset-size4.size7,.katex .sizing.reset-size4.size7{font-size:1.5em}.katex .fontsize-ensurer.reset-size4.size8,.katex .sizing.reset-size4.size8{font-size:1.8em}.katex .fontsize-ensurer.reset-size4.size9,.katex .sizing.reset-size4.size9{font-size:2.16em}.katex .fontsize-ensurer.reset-size4.size10,.katex .sizing.reset-size4.size10{font-size:2.5925em}.katex .fontsize-ensurer.reset-size4.size11,.katex .sizing.reset-size4.size11{font-size:3.11em}.katex .fontsize-ensurer.reset-size5.size1,.katex .sizing.reset-size5.size1{font-size:.5555555556em}.katex .fontsize-ensurer.reset-size5.size2,.katex .sizing.reset-size5.size2{font-size:.6666666667em}.katex .fontsize-ensurer.reset-size5.size3,.katex .sizing.reset-size5.size3{font-size:.7777777778em}.katex .fontsize-ensurer.reset-size5.size4,.katex .sizing.reset-size5.size4{font-size:.8888888889em}.katex .fontsize-ensurer.reset-size5.size5,.katex .sizing.reset-size5.size5{font-size:1em}.katex .fontsize-ensurer.reset-size5.size6,.katex .sizing.reset-size5.size6{font-size:1.1111111111em}.katex .fontsize-ensurer.reset-size5.size7,.katex .sizing.reset-size5.size7{font-size:1.3333333333em}.katex .fontsize-ensurer.reset-size5.size8,.katex .sizing.reset-size5.size8{font-size:1.6em}.katex .fontsize-ensurer.reset-size5.size9,.katex .sizing.reset-size5.size9{font-size:1.92em}.katex .fontsize-ensurer.reset-size5.size10,.katex .sizing.reset-size5.size10{font-size:2.3044444444em}.katex .fontsize-ensurer.reset-size5.size11,.katex .sizing.reset-size5.size11{font-size:2.7644444444em}.katex .fontsize-ensurer.reset-size6.size1,.katex .sizing.reset-size6.size1{font-size:.5em}.katex .fontsize-ensurer.reset-size6.size2,.katex .sizing.reset-size6.size2{font-size:.6em}.katex .fontsize-ensurer.reset-size6.size3,.katex .sizing.reset-size6.size3{font-size:.7em}.katex .fontsize-ensurer.reset-size6.size4,.katex .sizing.reset-size6.size4{font-size:.8em}.katex .fontsize-ensurer.reset-size6.size5,.katex .sizing.reset-size6.size5{font-size:.9em}.katex .fontsize-ensurer.reset-size6.size6,.katex .sizing.reset-size6.size6{font-size:1em}.katex .fontsize-ensurer.reset-size6.size7,.katex .sizing.reset-size6.size7{font-size:1.2em}.katex .fontsize-ensurer.reset-size6.size8,.katex .sizing.reset-size6.size8{font-size:1.44em}.katex .fontsize-ensurer.reset-size6.size9,.katex .sizing.reset-size6.size9{font-size:1.728em}.katex .fontsize-ensurer.reset-size6.size10,.katex .sizing.reset-size6.size10{font-size:2.074em}.katex .fontsize-ensurer.reset-size6.size11,.katex .sizing.reset-size6.size11{font-size:2.488em}.katex .fontsize-ensurer.reset-size7.size1,.katex .sizing.reset-size7.size1{font-size:.4166666667em}.katex .fontsize-ensurer.reset-size7.size2,.katex .sizing.reset-size7.size2{font-size:.5em}.katex .fontsize-ensurer.reset-size7.size3,.katex .sizing.reset-size7.size3{font-size:.5833333333em}.katex .fontsize-ensurer.reset-size7.size4,.katex .sizing.reset-size7.size4{font-size:.6666666667em}.katex .fontsize-ensurer.reset-size7.size5,.katex .sizing.reset-size7.size5{font-size:.75em}.katex .fontsize-ensurer.reset-size7.size6,.katex .sizing.reset-size7.size6{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size7.size7,.katex .sizing.reset-size7.size7{font-size:1em}.katex .fontsize-ensurer.reset-size7.size8,.katex .sizing.reset-size7.size8{font-size:1.2em}.katex .fontsize-ensurer.reset-size7.size9,.katex .sizing.reset-size7.size9{font-size:1.44em}.katex .fontsize-ensurer.reset-size7.size10,.katex .sizing.reset-size7.size10{font-size:1.7283333333em}.katex .fontsize-ensurer.reset-size7.size11,.katex .sizing.reset-size7.size11{font-size:2.0733333333em}.katex .fontsize-ensurer.reset-size8.size1,.katex .sizing.reset-size8.size1{font-size:.3472222222em}.katex .fontsize-ensurer.reset-size8.size2,.katex .sizing.reset-size8.size2{font-size:.4166666667em}.katex .fontsize-ensurer.reset-size8.size3,.katex .sizing.reset-size8.size3{font-size:.4861111111em}.katex .fontsize-ensurer.reset-size8.size4,.katex .sizing.reset-size8.size4{font-size:.5555555556em}.katex .fontsize-ensurer.reset-size8.size5,.katex .sizing.reset-size8.size5{font-size:.625em}.katex .fontsize-ensurer.reset-size8.size6,.katex .sizing.reset-size8.size6{font-size:.6944444444em}.katex .fontsize-ensurer.reset-size8.size7,.katex .sizing.reset-size8.size7{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size8.size8,.katex .sizing.reset-size8.size8{font-size:1em}.katex .fontsize-ensurer.reset-size8.size9,.katex .sizing.reset-size8.size9{font-size:1.2em}.katex .fontsize-ensurer.reset-size8.size10,.katex .sizing.reset-size8.size10{font-size:1.4402777778em}.katex .fontsize-ensurer.reset-size8.size11,.katex .sizing.reset-size8.size11{font-size:1.7277777778em}.katex .fontsize-ensurer.reset-size9.size1,.katex .sizing.reset-size9.size1{font-size:.2893518519em}.katex .fontsize-ensurer.reset-size9.size2,.katex .sizing.reset-size9.size2{font-size:.3472222222em}.katex .fontsize-ensurer.reset-size9.size3,.katex .sizing.reset-size9.size3{font-size:.4050925926em}.katex .fontsize-ensurer.reset-size9.size4,.katex .sizing.reset-size9.size4{font-size:.462962963em}.katex .fontsize-ensurer.reset-size9.size5,.katex .sizing.reset-size9.size5{font-size:.5208333333em}.katex .fontsize-ensurer.reset-size9.size6,.katex .sizing.reset-size9.size6{font-size:.5787037037em}.katex .fontsize-ensurer.reset-size9.size7,.katex .sizing.reset-size9.size7{font-size:.6944444444em}.katex .fontsize-ensurer.reset-size9.size8,.katex .sizing.reset-size9.size8{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size9.size9,.katex .sizing.reset-size9.size9{font-size:1em}.katex .fontsize-ensurer.reset-size9.size10,.katex .sizing.reset-size9.size10{font-size:1.2002314815em}.katex .fontsize-ensurer.reset-size9.size11,.katex .sizing.reset-size9.size11{font-size:1.4398148148em}.katex .fontsize-ensurer.reset-size10.size1,.katex .sizing.reset-size10.size1{font-size:.2410800386em}.katex .fontsize-ensurer.reset-size10.size2,.katex .sizing.reset-size10.size2{font-size:.2892960463em}.katex .fontsize-ensurer.reset-size10.size3,.katex .sizing.reset-size10.size3{font-size:.337512054em}.katex .fontsize-ensurer.reset-size10.size4,.katex .sizing.reset-size10.size4{font-size:.3857280617em}.katex .fontsize-ensurer.reset-size10.size5,.katex .sizing.reset-size10.size5{font-size:.4339440694em}.katex .fontsize-ensurer.reset-size10.size6,.katex .sizing.reset-size10.size6{font-size:.4821600771em}.katex .fontsize-ensurer.reset-size10.size7,.katex .sizing.reset-size10.size7{font-size:.5785920926em}.katex .fontsize-ensurer.reset-size10.size8,.katex .sizing.reset-size10.size8{font-size:.6943105111em}.katex .fontsize-ensurer.reset-size10.size9,.katex .sizing.reset-size10.size9{font-size:.8331726133em}.katex .fontsize-ensurer.reset-size10.size10,.katex .sizing.reset-size10.size10{font-size:1em}.katex .fontsize-ensurer.reset-size10.size11,.katex .sizing.reset-size10.size11{font-size:1.1996142719em}.katex .fontsize-ensurer.reset-size11.size1,.katex .sizing.reset-size11.size1{font-size:.2009646302em}.katex .fontsize-ensurer.reset-size11.size2,.katex .sizing.reset-size11.size2{font-size:.2411575563em}.katex .fontsize-ensurer.reset-size11.size3,.katex .sizing.reset-size11.size3{font-size:.2813504823em}.katex .fontsize-ensurer.reset-size11.size4,.katex .sizing.reset-size11.size4{font-size:.3215434084em}.katex .fontsize-ensurer.reset-size11.size5,.katex .sizing.reset-size11.size5{font-size:.3617363344em}.katex .fontsize-ensurer.reset-size11.size6,.katex .sizing.reset-size11.size6{font-size:.4019292605em}.katex .fontsize-ensurer.reset-size11.size7,.katex .sizing.reset-size11.size7{font-size:.4823151125em}.katex .fontsize-ensurer.reset-size11.size8,.katex .sizing.reset-size11.size8{font-size:.578778135em}.katex .fontsize-ensurer.reset-size11.size9,.katex .sizing.reset-size11.size9{font-size:.6945337621em}.katex .fontsize-ensurer.reset-size11.size10,.katex .sizing.reset-size11.size10{font-size:.8336012862em}.katex .fontsize-ensurer.reset-size11.size11,.katex .sizing.reset-size11.size11{font-size:1em}.katex .delimsizing.size1{font-family:KaTeX_Size1}.katex .delimsizing.size2{font-family:KaTeX_Size2}.katex .delimsizing.size3{font-family:KaTeX_Size3}.katex .delimsizing.size4{font-family:KaTeX_Size4}.katex .delimsizing.mult .delim-size1>span{font-family:KaTeX_Size1}.katex .delimsizing.mult .delim-size4>span{font-family:KaTeX_Size4}.katex .nulldelimiter{display:inline-block;width:.12em}.katex .delimcenter,.katex .op-symbol{position:relative}.katex .op-symbol.small-op{font-family:KaTeX_Size1}.katex .op-symbol.large-op{font-family:KaTeX_Size2}.katex .accent>.vlist-t,.katex .op-limits>.vlist-t{text-align:center}.katex .accent .accent-body{position:relative}.katex .accent .accent-body:not(.accent-full){width:0}.katex .overlay{display:block}.katex .mtable .vertical-separator{display:inline-block;min-width:1px}.katex .mtable .arraycolsep{display:inline-block}.katex .mtable .col-align-c>.vlist-t{text-align:center}.katex .mtable .col-align-l>.vlist-t{text-align:left}.katex .mtable .col-align-r>.vlist-t{text-align:right}.katex .svg-align{text-align:left}.katex svg{fill:currentColor;stroke:currentColor;display:block;height:inherit;position:absolute;width:100%}.katex svg path{stroke:none}.katex svg{fill-rule:nonzero;fill-opacity:1;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1}.katex img{border-style:none;max-height:none;max-width:none;min-height:0;min-width:0}.katex .stretchy{display:block;overflow:hidden;position:relative;width:100%}.katex .stretchy:after,.katex .stretchy:before{content:""}.katex .hide-tail{overflow:hidden;position:relative;width:100%}.katex .halfarrow-left{left:0;overflow:hidden;position:absolute;width:50.2%}.katex .halfarrow-right{overflow:hidden;position:absolute;right:0;width:50.2%}.katex .brace-left{left:0;overflow:hidden;position:absolute;width:25.1%}.katex .brace-center{left:25%;overflow:hidden;position:absolute;width:50%}.katex .brace-right{overflow:hidden;position:absolute;right:0;width:25.1%}.katex .x-arrow-pad{padding:0 .5em}.katex .cd-arrow-pad{padding:0 .55556em 0 .27778em}.katex .mover,.katex .munder,.katex .x-arrow{text-align:center}.katex .boxpad{padding:0 .3em}.katex .fbox,.katex .fcolorbox{border:.04em solid;box-sizing:border-box}.katex .cancel-pad{padding:0 .2em}.katex .cancel-lap{margin-left:-.2em;margin-right:-.2em}.katex .sout{border-bottom-style:solid;border-bottom-width:.08em}.katex .angl{border-right:.049em solid;border-top:.049em solid;box-sizing:border-box;margin-right:.03889em}.katex .anglpad{padding:0 .03889em}.katex .eqn-num:before{content:"(" counter(katexEqnNo) ")";counter-increment:katexEqnNo}.katex .mml-eqn-num:before{content:"(" counter(mmlEqnNo) ")";counter-increment:mmlEqnNo}.katex .mtr-glue{width:50%}.katex .cd-vert-arrow{display:inline-block;position:relative}.katex .cd-label-left{display:inline-block;position:absolute;right:calc(50% + .3em);text-align:left}.katex .cd-label-right{display:inline-block;left:calc(50% + .3em);position:absolute;text-align:right}.katex-display{display:block;margin:1em 0;text-align:center}.katex-display>.katex{display:block;text-align:center;white-space:nowrap}.katex-display>.katex>.katex-html{display:block;position:relative}.katex-display>.katex>.katex-html>.tag{position:absolute;right:0}.katex-display.leqno>.katex>.katex-html>.tag{left:0;right:auto}.katex-display.fleqn>.katex{padding-left:2em;text-align:left}body{counter-reset:katexEqnNo mmlEqnNo}
+</style>
+</head>
+<body>
+<!-- NOTE: This ID is also referenced in src/webview/scroll-sync-webview.ts (applyPendingBodyUpdate). -->
+<div id="preview-content">
+<h1 id="01-multi-threaded-architecture">01 — Multi-Threaded Architecture</h1>
+<p><code>rusty_dedup</code> is architected as a <strong>staged, bounded-memory multi-threaded pipeline</strong> designed to saturate a single host's GPU video decoder and spinning HDD I/O sequentially without blowing up RAM or thrashing drive heads across <strong>300,000+ video files (~80 TB)</strong>.</p>
+<hr>
+<h2 id="1-design-principles">1. Design Principles</h2>
+<ol>
+<li><strong>Sequential Platter Discipline (Per-Volume <code>BTreeMap&lt;(dev_id, inode)&gt;</code>)</strong>:
+<ul>
+<li>External spinning HDDs collapse from ~180 MB/s to &lt;2 MB/s under random multi-threaded seeks.</li>
+<li><code>rusty_dedup</code> groups discovered files by physical OS device ID (<code>dev_id</code>), sorts monotonically by <code>(dev_id, inode, path)</code>, and assigns <strong>1 sequential worker per physical volume</strong> by default (<code>--hdd-concurrency 1</code>). Multiple external drives probe in parallel via Rayon while each individual platter is read in strict monotonic inode order.</li>
+</ul>
+</li>
+<li><strong>Heterogeneous Decode Offload with Strict GPU Fast-Fail</strong>:
+<ul>
+<li>Hardware video decoding (VideoToolbox, CUDA/NVDEC, D3D12VA/D3D11VA, QSV, VAAPI, Vulkan, etc.) runs on a dedicated <code>gpu-decode-worker</code> thread, downscaling frames on-GPU to <strong><code>72×72</code> grayscale</strong> (~5 KB/frame — 600× smaller than 1080p!) before crossing the PCIe/memory bus.</li>
+<li>Legacy codecs unsupported by the GPU (e.g., <code>WMV2</code>, <code>MPEG4</code>, <code>DIVX</code>, or unsupported profiles) are routed cleanly to <code>cpu-decode-worker</code> so GPU and CPU decoding overlap in parallel.</li>
+<li>Driver/hardware failures <strong>never silently fall back to CPU</strong> — they abort cleanly with diagnostic links.</li>
+</ul>
+</li>
+<li><strong>Bounded Memory via Backpressure &amp; LRU + SQLite3 BLOB Offload</strong>:
+<ul>
+<li>Raw <code>72×72</code> luma buffers move from decode workers to <code>cpu-dhash-worker</code> over <code>mpsc::sync_channel(16)</code> (<code>FRAME_CHANNEL_CAPACITY = 16</code>). If hashing ever falls behind decoding, decoders block naturally instead of growing RAM unboundedly.</li>
+<li>In-memory 1-fps hash vectors are capped by two <code>BoundedHashCache</code> LRUs (<code>HASH_LRU_CAPACITY = 2000</code> videos each for 60s prefixes and full dense hashes). Heavy vectors live as compact little-endian <code>u64</code> BLOBs (8 bytes/second of video) in <strong>SQLite3 WAL</strong> (<code>.states/rusty_session_{sessionid}.db</code>), keeping total RAM flat (~75–150 MB) even at 300K files.</li>
+</ul>
+</li>
+<li><strong>Lock-Free Zero-Allocation Observability</strong>:
+<ul>
+<li>All hot-path thread timers and 24-bucket latency histograms use <code>AtomicU64</code> (<code>Ordering::Relaxed</code>), avoiding mutex contention on worker threads.</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2 id="2-complete-thread-inventory">2. Complete Thread Inventory</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">OS Thread Name</th>
+<th style="text-align:left">Telemetry Role</th>
+<th style="text-align:left">Count</th>
+<th style="text-align:left">Primary Ownership</th>
+<th style="text-align:left">Inbound Channel / Input</th>
+<th style="text-align:left">Outbound Channel / Output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>main</code></td>
+<td style="text-align:left">Coordinator</td>
+<td style="text-align:left">1</td>
+<td style="text-align:left">CLI, <code>--config-test</code>, <code>WalkDir</code>, Creator Directory, Pass 1b/2 orchestration, Union-Find clustering, <code>duplicates.json</code> output</td>
+<td style="text-align:left">CLI args, <code>DecodePipeline::recv()</code>, SQLite reader</td>
+<td style="text-align:left"><code>DecodeJob</code> → <code>gpu_tx</code>/<code>cpu_tx</code>, <code>Pass2EvalJob</code> → <code>eval_tx</code>, <code>DbWriteOp</code> → <code>db_tx</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Rayon per-volume workers</td>
+<td style="text-align:left"><code>ffprobe_workers</code></td>
+<td style="text-align:left">1 per physical <code>dev_id</code> (× <code>--hdd-concurrency</code>)</td>
+<td style="text-align:left">Pass 1a: SQLite cache check, single-header <code>ffprobe</code> (duration, resolution, codecs, video/audio bitrates), on-demand 0-bitrate re-probe, 192 KB BLAKE3 sample</td>
+<td style="text-align:left"><code>BTreeMap&lt;dev_id, Vec&lt;FileEntry&gt;&gt;</code> (inode-sorted)</td>
+<td style="text-align:left"><code>DbWriteOp::UpsertFileRecord</code> / <code>UpdateBitrates</code> → <code>db_tx</code>; returns <code>Vec&lt;VideoRecord&gt;</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>gpu-decode-worker</code></td>
+<td style="text-align:left"><code>gpu_decode_worker</code></td>
+<td style="text-align:left">1 (when HW enabled)</td>
+<td style="text-align:left">Spawns HW-accelerated <code>ffmpeg</code> (<code>-hwaccel &lt;backend&gt;</code> + GPU <code>72×72</code> downscale) for <code>Sparse5</code>, <code>Prefix1Fps</code>, <code>Dense1Fps</code></td>
+<td style="text-align:left"><code>gpu_rx</code> (<code>mpsc::channel&lt;DecodeJob&gt;</code>)</td>
+<td style="text-align:left"><code>StagedLumaBatch</code> → <code>stage_tx</code> (<code>sync_channel(16)</code>); per-file codec rejects → <code>cpu_tx</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cpu-decode-worker</code></td>
+<td style="text-align:left"><code>cpu_decode_worker</code></td>
+<td style="text-align:left">1</td>
+<td style="text-align:left">Spawns fastest CPU <code>ffmpeg</code> decoder (<code>libdav1d</code>, <code>vp9</code>, <code>hevc</code>, <code>h264</code>, <code>wmv3</code>, etc.) for legacy/rejected codecs or CPU-only mode</td>
+<td style="text-align:left"><code>cpu_rx</code> (<code>mpsc::channel&lt;DecodeJob&gt;</code>)</td>
+<td style="text-align:left"><code>StagedLumaBatch</code> → <code>stage_tx</code> (<code>sync_channel(16)</code>)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>cpu-dhash-worker</code></td>
+<td style="text-align:left"><code>cpu_dhash_worker</code></td>
+<td style="text-align:left">1</td>
+<td style="text-align:left">Pure-Rust exact integer <code>8×9</code> block-average (<code>72×72 → 9×8</code>) + 64-bit horizontal gradient <code>dHash</code></td>
+<td style="text-align:left"><code>stage_rx</code> (<code>sync_channel(16)</code>)</td>
+<td style="text-align:left"><code>DbWriteOp::Update*Hashes</code> → <code>db_tx</code>; <code>DecodeResult</code> → <code>result_tx</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>pair-eval-pass1</code></td>
+<td style="text-align:left"><code>pair_evaluator_pass1</code></td>
+<td style="text-align:left">1 (Pass 1c)</td>
+<td style="text-align:left"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">K</span><span class="mclose">)</span></span></span></span> runtime-sorted sliding window, pair categorization (<code>Strong</code>/<code>Weak</code>/<code>Potentially Distinct</code>), Pass-1 Strong fast-path &amp; conflicting-creator triage</td>
+<td style="text-align:left"><code>Arc&lt;Vec&lt;VideoRecord&gt;&gt;</code> (runtime-sorted)</td>
+<td style="text-align:left"><code>DbWriteOp::UpsertPairScore</code> → <code>db_tx</code>; returns prioritized <code>Vec&lt;CandidatePair&gt;</code> + Pass-1 confirmed edges</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>pair-eval-pass2</code></td>
+<td style="text-align:left"><code>pair_evaluator_pass2</code></td>
+<td style="text-align:left">1 (Pass 2)</td>
+<td style="text-align:left">Stage E sliding-window alignment (<code>[-10s..+10s]</code>), confidence scoring (<code>&gt;= 0.90</code>), automatic Creator Directory alias learning</td>
+<td style="text-align:left"><code>eval_rx</code> (<code>sync_channel(16)</code>)</td>
+<td style="text-align:left"><code>DbWriteOp::UpsertPairScore</code> → <code>db_tx</code>; returns confirmed edges + updated <code>CreatorDirectory</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>sqlite-wal-writer</code></td>
+<td style="text-align:left"><code>sqlite_wal_writer</code></td>
+<td style="text-align:left">1</td>
+<td style="text-align:left">Batches up to 500 mutations or every <code>--checkpoint-interval-ms</code> (default 2,000 ms) into atomic SQLite3 WAL transactions + <code>PRAGMA wal_checkpoint(TRUNCATE)</code> on shutdown</td>
+<td style="text-align:left"><code>db_rx</code> (<code>mpsc::channel&lt;DbWriteOp&gt;</code>)</td>
+<td style="text-align:left"><code>.states/rusty_session_{sessionid}.db</code> (WAL)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>telemetry-reporter</code></td>
+<td style="text-align:left">Background</td>
+<td style="text-align:left">0–1</td>
+<td style="text-align:left">Periodic terminal heartbeats, 500 ms atomic JSON snapshot flushes for Python harness, optional Pushgateway <code>PUT</code> &amp; <code>.prom</code> textfile export</td>
+<td style="text-align:left">Shared <code>Arc&lt;TelemetryRegistry&gt;</code></td>
+<td style="text-align:left"><code>stderr</code>, <code>/tmp/rusty_dedup_telemetry_&lt;pid&gt;.json</code>, Pushgateway / <code>.prom</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>prom-scrape-http</code></td>
+<td style="text-align:left">Background</td>
+<td style="text-align:left">0–1</td>
+<td style="text-align:left">Zero-dependency <code>TcpListener</code> serving <code>GET /metrics</code> &amp; <code>/healthz</code> in standalone mode (automatically skipped under Python harness)</td>
+<td style="text-align:left">Shared <code>Arc&lt;TelemetryRegistry&gt;</code></td>
+<td style="text-align:left">HTTP/1.1 Prometheus v0.0.4 response</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="3-system-architecture-diagram">3. System Architecture Diagram</h2>
+<div class="mermaid-diagram" data-vscode-context='{"webviewSection":"diagram","preventDefaultContextMenuItems":false}'><pre class="mermaid">flowchart TB
+    subgraph Inputs[&quot;Storage Volumes (HDD / SSD)&quot;]
+        VOL1[&quot;Physical Volume dev_id=A\n(Sorted by Inode)&quot;]
+        VOL2[&quot;Physical Volume dev_id=B\n(Sorted by Inode)&quot;]
+    end
+
+    subgraph Pass1a[&quot;Pass 1a: Per-Volume Probing Pool (Rayon)&quot;]
+        FFP1[&quot;ffprobe_worker (dev A)\nSQLite Check -&gt; ffprobe -&gt; Bitrates -&gt; BLAKE3&quot;]
+        FFP2[&quot;ffprobe_worker (dev B)\nSQLite Check -&gt; ffprobe -&gt; Bitrates -&gt; BLAKE3&quot;]
+    end
+
+    MAIN[&quot;main Thread (Coordinator)\nWalkDir -&gt; CreatorDir -&gt; Sliding Window -&gt;\nPass 2 Funnel (Stages A-D) -&gt; Union-Find -&gt; duplicates.json&quot;]
+
+    subgraph DecodePipe[&quot;3-Thread DecodePipeline (src/pipeline.rs)&quot;]
+        GPU[&quot;gpu-decode-worker\nFFmpeg HW Decode + GPU 72x72 Scale&quot;]
+        CPU[&quot;cpu-decode-worker\nFFmpeg CPU Decode (libdav1d/wmv/rejected)&quot;]
+        CH16([&quot;Bounded sync_channel(16)\nStagedLumaBatch (72x72 Y8)&quot;])
+        DHASH[&quot;cpu-dhash-worker\nExact 8x9 Block Avg -&gt; 64-bit dHash&quot;]
+    end
+
+    subgraph Evaluators[&quot;Dedicated Pair Evaluation Threads&quot;]
+        P1[&quot;pair-eval-pass1\nRuntime Sliding Window + Strong Fast-Path&quot;]
+        CH_EVAL([&quot;Bounded sync_channel(16)\nPass2EvalJob&quot;])
+        P2[&quot;pair-eval-pass2\nStage E Alignment + Alias Learning&quot;]
+    end
+
+    subgraph Storage[&quot;Persistence &amp; Bounded Caches (src/db.rs)&quot;]
+        LRU[&quot;BoundedHashCache\nPrefix LRU (2,000) + Dense LRU (2,000)&quot;]
+        DBW[&quot;sqlite-wal-writer\nBatched &lt;=500 ops / 2000ms&quot;]
+        SQLITE[(&quot;SQLite3 WAL DB\n.states/rusty_session_{id}.db\nfile_records + pair_scores + BLOBs&quot;)]
+    end
+
+    subgraph Observability[&quot;Lock-Free APM Telemetry&quot;]
+        REG[&quot;Arc&lt;TelemetryRegistry&gt;\nAtomicU64 USE+RED + 24-Bucket Histograms&quot;]
+        REP[&quot;telemetry-reporter / prom-scrape-http\n500ms Atomic Snapshot + :9185/metrics&quot;]
+    end
+
+    VOL1 --&gt; FFP1
+    VOL2 --&gt; FFP2
+    FFP1 --&gt;|&quot;Vec&lt;VideoRecord&gt;&quot;| MAIN
+    FFP2 --&gt;|&quot;Vec&lt;VideoRecord&gt;&quot;| MAIN
+    FFP1 --&gt;|&quot;UpsertFileRecord / UpdateBitrates&quot;| DBW
+    FFP2 --&gt;|&quot;UpsertFileRecord / UpdateBitrates&quot;| DBW
+
+    MAIN --&gt;|&quot;GPU-supported DecodeJob&quot;| GPU
+    MAIN --&gt;|&quot;Legacy codec DecodeJob&quot;| CPU
+    GPU --&gt;|&quot;CodecRejected forward&quot;| CPU
+    GPU --&gt;|&quot;StagedLumaBatch&quot;| CH16
+    CPU --&gt;|&quot;StagedLumaBatch&quot;| CH16
+    CH16 --&gt; DHASH
+    DHASH --&gt;|&quot;Update*Hashes BLOB&quot;| DBW
+    DHASH --&gt;|&quot;DecodeResult (Vec&lt;u64&gt;)&quot;| MAIN
+
+    MAIN --&gt;|&quot;Arc&lt;Vec&lt;VideoRecord&gt;&gt;&quot;| P1
+    P1 --&gt;|&quot;UpsertPairScore&quot;| DBW
+    P1 --&gt;|&quot;CandidatePair Queue&quot;| MAIN
+
+    MAIN &lt;--&gt;|&quot;Hit / Reload BLOB&quot;| LRU
+    LRU -.-&gt;|&quot;Cache Miss Read&quot;| SQLITE
+    MAIN --&gt;|&quot;Pass2EvalJob&quot;| CH_EVAL
+    CH_EVAL --&gt; P2
+    P2 --&gt;|&quot;UpsertPairScore&quot;| DBW
+    P2 --&gt;|&quot;Confirmed Edges + Aliases&quot;| MAIN
+
+    DBW --&gt;|&quot;Atomic WAL Tx&quot;| SQLITE
+    MAIN -.-&gt; REG
+    GPU -.-&gt; REG
+    CPU -.-&gt; REG
+    DHASH -.-&gt; REG
+    P1 -.-&gt; REG
+    P2 -.-&gt; REG
+    DBW -.-&gt; REG
+    REG --&gt; REP
+</pre></div>
+<hr>
+<h2 id="4-high-level-sequence-diagram-thread-lifecycle-resource-flow">4. High-Level Sequence Diagram: Thread Lifecycle &amp; Resource Flow</h2>
+<p>This diagram traces <strong>how resources travel across threads</strong> from process startup through Pass 1, Pass 2, and clean shutdown.</p>
+<div class="mermaid-diagram" data-vscode-context='{"webviewSection":"diagram","preventDefaultContextMenuItems":false}'><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant Main as main Thread
+    participant FFP as ffprobe_workers&lt;br/&gt;(1 per dev_id)
+    participant GPU as gpu-decode-worker
+    participant CPU as cpu-decode-worker
+    participant DHash as cpu-dhash-worker
+    participant P1 as pair-eval-pass1
+    participant P2 as pair-eval-pass2
+    participant WAL as sqlite-wal-writer
+    participant DB as SQLite3 WAL DB
+
+    Note over Main,DB: Phase 0 — Startup &amp; Mandatory Hardware Verification
+    Main-&gt;&gt;Main: Parse dedup_config.yaml + run_config_test()&lt;br/&gt;(Embedded 128x128 MP4 -&gt; GPU 72x72 -&gt; 9x8 dHash)
+    Main-&gt;&gt;DB: SessionDb::open_or_create() + idempotent ALTER TABLE migration
+    Main-&gt;&gt;WAL: Spawn sqlite-wal-writer (mpsc::channel&lt;DbWriteOp&gt;)
+    Main-&gt;&gt;Main: WalkDir (dev, inode) dedup + sort by (dev_id, inode) + CreatorDir TF-IDF
+
+    Note over Main,DB: Phase 1a — Inode-Ordered Header &amp; Bitrate Probing
+    Main-&gt;&gt;FFP: Dispatch files_by_dev (BTreeMap&lt;dev_id, Vec&lt;File&gt;&gt;)
+    loop Each file in monotonic inode order
+        FFP-&gt;&gt;DB: Read-only lookup get_compact_file_record(file_key)
+        alt Cache Hit &amp; bitrate already populated
+            DB--&gt;&gt;FFP: Compact VideoRecord (no ffprobe spawned)
+        else Cache Miss OR cached video_bitrate_bps == 0
+            FFP-&gt;&gt;FFP: Run single-header ffprobe (duration, res, codecs, v/a bitrates)&lt;br/&gt;+ optional 192KB BLAKE3 if size collides
+            FFP-&gt;&gt;WAL: Send UpsertFileRecord / UpdateBitrates
+        end
+    end
+    FFP--&gt;&gt;Main: Return Vec&lt;VideoRecord&gt;
+    Main-&gt;&gt;WAL: Flush() — guarantee all file_records committed before Pass 1b
+    WAL-&gt;&gt;DB: Commit batched WAL transaction
+
+    Note over Main,DB: Phase 1b — Pipelined 5-Keyframe Extraction (Runtime-Neighbor Videos Only)
+    Main-&gt;&gt;Main: Sort records by runtime_exact_secs + mark_videos_needing_sparse_keyframes()
+    Main-&gt;&gt;GPU: Spawn DecodePipeline &amp; submit DecodeJob(Sparse5)
+    par Concurrent Decode, Hash &amp; Persist
+        GPU-&gt;&gt;GPU: FFmpeg HW decode + GPU 72x72 scale (or forward CodecRejected -&gt; CPU)
+        GPU-&gt;&gt;DHash: Push StagedLumaBatch (5 x 5KB = 25KB) via sync_channel(16)
+        opt Legacy or GPU-rejected codec
+            Main-&gt;&gt;CPU: Submit DecodeJob(Sparse5)
+            CPU-&gt;&gt;DHash: Push StagedLumaBatch via sync_channel(16)
+        end
+        DHash-&gt;&gt;DHash: Pure-Rust 8x9 block-avg -&gt; 5 x u64 dHashes
+        DHash-&gt;&gt;WAL: Send UpdateSparseHashes (40-byte BLOB)
+        DHash--&gt;&gt;Main: Send DecodeResult(sparse_hashes)
+    end
+
+    Note over Main,DB: Phase 1c — Dedicated Pass-1 Pair Categorizer
+    Main-&gt;&gt;P1: Spawn pair-eval-pass1 with Arc&lt;Vec&lt;VideoRecord&gt;&gt;
+    P1-&gt;&gt;P1: Runtime-sorted sliding window -&gt; Categorize Strong / Weak / Distinct&lt;br/&gt;Verify Strong 5-keyframes (Fast-Path confirm / Conflict reject)
+    P1-&gt;&gt;WAL: Send UpsertPairScore for Pass-1 resolved pairs
+    P1--&gt;&gt;Main: Return prioritized CandidatePair list + Pass-1 confirmed edges
+
+    Note over Main,DB: Phase 2 — Funnel Confirmation (Stages A-E) with Bounded LRU Caches
+    Main-&gt;&gt;P2: Spawn pair-eval-pass2 (eval_channel: sync_channel(16))
+    loop Each CandidatePair (Strong-remaining -&gt; Weak -&gt; Potentially Distinct)
+        Main-&gt;&gt;DB: Check cached pair_scores / Union-Find / Stage A BLAKE3 / Stage B Sparse Gate
+        opt Needs Stage C (60s Prefix) or Stage D (Full 1-fps Dense) &amp; LRU/SQLite Miss
+            Main-&gt;&gt;GPU: Submit DecodeJob(Prefix1Fps or Dense1Fps) for File 1 &amp; File 2
+            GPU-&gt;&gt;DHash: Push StagedLumaBatch (~300KB for 60s; ~18MB for 1h) via sync_channel(16)
+            DHash-&gt;&gt;WAL: Send UpdatePrefixHashes / UpdateDenseHashes (8B/sec BLOB)
+            DHash--&gt;&gt;Main: Send DecodeResult -&gt; insert into BoundedHashCache (2,000 LRU)
+        end
+        Main-&gt;&gt;P2: Send Pass2EvalJob(hashes1, hashes2) via eval_channel(16)
+        P2-&gt;&gt;P2: Stage E Sliding-Window Alignment [-10s..+10s] + Confidence &gt;= 0.90&lt;br/&gt;+ Automatic Creator Alias Learning
+        P2-&gt;&gt;WAL: Send UpsertPairScore
+    end
+
+    Note over Main,DB: Phase 3 — Clean Shutdown &amp; Output Generation
+    Main-&gt;&gt;P2: Drop eval_tx &amp; join() -&gt; merge confirmed edges into Union-Find
+    Main-&gt;&gt;GPU: pipeline.shutdown() (closes gpu_tx/cpu_tx -&gt; drains stage_rx -&gt; joins all 3 threads)
+    Main-&gt;&gt;WAL: db_writer.shutdown() -&gt; final batch commit + PRAGMA wal_checkpoint(TRUNCATE)
+    Main-&gt;&gt;Main: Build connected components -&gt; write duplicates.json (with input_directories &amp; bitrates)
+</pre></div>
+<hr>
+<h2 id="5-backpressure-memory-safety-concurrency-guarantees">5. Backpressure, Memory Safety &amp; Concurrency Guarantees</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Resource / Queue</th>
+<th style="text-align:left">Bound</th>
+<th style="text-align:left">Behavior Under Saturation</th>
+<th style="text-align:left">Peak RAM Impact (300K Library)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>stage_channel</code> (Decoders → <code>cpu-dhash-worker</code>)</td>
+<td style="text-align:left"><code>16</code> slots (<code>sync_channel(16)</code>)</td>
+<td style="text-align:left"><code>gpu-decode-worker</code> / <code>cpu-decode-worker</code> block on <code>.send()</code>, recording <code>backpressured_ns</code> telemetry.</td>
+<td style="text-align:left">~25–60 MB peak in-flight <code>72×72</code> luma buffers</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>eval_channel</code> (<code>main</code> → <code>pair-eval-pass2</code>)</td>
+<td style="text-align:left"><code>16</code> slots (<code>sync_channel(16)</code>)</td>
+<td style="text-align:left"><code>main</code> blocks briefly if Stage E alignment ever lags decoding (in practice Stage E takes ~0.2 ms/pair).</td>
+<td style="text-align:left">&lt; 5 MB</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>Prefix 1-fps LRU</code> &amp; <code>Dense 1-fps LRU</code></td>
+<td style="text-align:left"><code>2,000</code> videos each (<code>BoundedHashCache</code>)</td>
+<td style="text-align:left">FIFO eviction of in-memory <code>Vec&lt;u64&gt;</code>; evicted hashes remain safely stored in SQLite3 WAL BLOBs and reload on demand (<code>sqlite_reload</code>).</td>
+<td style="text-align:left">~60–100 MB flat</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>Vec&lt;VideoRecord&gt;</code> in RAM</td>
+<td style="text-align:left">1 compact struct per video (<code>strip_heavy_hashes()</code>)</td>
+<td style="text-align:left">Only metadata + 5 sparse hashes (40 bytes) stay resident; 1-fps hashes are never stored on <code>VideoRecord</code> in RAM.</td>
+<td style="text-align:left">~75 MB at 300,000 videos</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>AsyncDbWriter</code> pending buffer</td>
+<td style="text-align:left">Flushes every <code>500</code> mutations or <code>2,000 ms</code></td>
+<td style="text-align:left">Batches writes into single WAL transactions (~1–50 ms p95) without blocking decoders.</td>
+<td style="text-align:left">&lt; 2 MB</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:false,theme:window.__mermaidTheme||'default'});window.__renderMermaid=async function(){var prefix='m'+Date.now()+'_';var scale=0.8;var els=document.querySelectorAll('pre.mermaid');for(var i=0;i<els.length;i++){var el=els[i];try{var r=await mermaid.render(prefix+i,el.textContent||'');el.innerHTML=r.svg}catch(e){var msg=(e.message||String(e)).replace(/</g,'&lt;').replace(/>/g,'&gt;');el.innerHTML='<div class="mermaid-error">'+msg+'</div>'}/* Remove temp divs mermaid leaves on body (not cleaned up on error) */document.querySelectorAll('body>[id^="d'+prefix+'"]').forEach(function(x){x.remove()});if(scale>0){var svg=el.querySelector('svg');if(svg){var mw=svg.style.maxWidth;var natW=mw?parseFloat(mw):parseFloat(svg.getAttribute('width'));if(!isNaN(natW)){svg.setAttribute('width',(natW*scale)+'px');svg.style.maxWidth='none';svg.removeAttribute('height');svg.style.height='auto'}}}el.style.visibility='visible'}};window.__renderMermaidDone=window.__renderMermaid();</script>
+
+</body>
+</html>

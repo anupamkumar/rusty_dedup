@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>03_metrics_and_observability</title>
+  <style id="theme-css">
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { background-color: #ffffff; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      font-size: 16px;
+      max-width: 960px; /* matches GitHub / VS Code markdown preview width */
+      margin: 0 auto;
+      padding: 46px 30px 4rem; /* as much room as Typora (GitHub theme): 30px at the sides, 30px + 16px above the first heading */
+      line-height: 1.6;
+      word-wrap: break-word;
+      color: #24292e;
+      background-color: #ffffff;
+    }
+    /* Block shapes (sizes, weights, spacing, borders, indents) follow GitHub (github-markdown-css 5.8.1); colors stay the theme's.
+       Body and table line height stay 1.6 rather than GitHub's 1.5, which is cramped for CJK text.
+       Spacing is the same margin above and below (adjacent margins collapse), which gives GitHub's gaps. */
+    #preview-content > :first-child { margin-top: 0 !important; }
+    #preview-content > :last-child { margin-bottom: 0 !important; }
+    h1 { font-size: 2em; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3em; }
+    h2 { font-size: 1.5em; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3em; }
+    h3 { font-size: 1.25em; }
+    h4 { font-size: 1em; }
+    h5 { font-size: 0.875em; }
+    h6 { font-size: 0.85em; }
+    h1, h2, h3, h4, h5, h6 { margin-top: 24px; margin-bottom: 16px; font-weight: 600; line-height: 1.25; scroll-margin-top: 1.5em; }
+    p { margin: 1em 0; }
+    /* Paragraphs inside list items have no margin; lists whose items are separated by blank lines (loose lists) get paragraph spacing. */
+    li > p { margin: 0; }
+    ul.list-loose > li > p, ol.list-loose > li > p { margin: 1em 0; }
+    ul.list-loose > li:first-child > p:first-child, ol.list-loose > li:first-child > p:first-child { margin-top: 0; }
+    ul.list-loose > li:last-child > p:last-child, ol.list-loose > li:last-child > p:last-child { margin-bottom: 0; }
+    ul, ol { margin: 1em 0; padding-left: 2em; }
+    ul ul, ul ol, ol ul, ol ol { margin: 0; }
+    ol ol, ul ol { list-style-type: lower-roman; }
+    ul ul ol, ul ol ol, ol ul ol, ol ol ol { list-style-type: lower-alpha; }
+    li + li { margin-top: 0.25em; }
+    b, strong { font-weight: 600; }
+    a { color: #0366d6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    a:visited { color: #6f42c1; }
+    code {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 0.875em;
+      color: #24292e;
+      background: #f6f8fa;
+      padding: 0.2em 0.4em;
+      border-radius: 6px;
+    }
+    /* The code block carries the code font size and line height, so the line pitch is the code size x 1.45 as on GitHub. */
+    pre {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 0.875em;
+      line-height: 1.45;
+      margin: 16px 0;
+      border-radius: 6px;
+      padding: 16px;
+      overflow-x: auto;
+    }
+    h1 code, h2 code, h3 code, h4 code, h5 code, h6 code { padding: 0 0.2em; font-size: inherit; }
+    pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+    /* With source lines, a code block is wrapped in a div ending in a line marker that stops margin collapsing,
+       so the wrapper takes the code block's margin (with the specificity of a bare div, so first and last child rules still win). */
+    div:where([data-source-line]:not([class])) { margin: 16px 0; }
+    div:where([data-source-line]:not([class])) > pre { margin: 0; }
+    kbd {
+      display: inline-block;
+      padding: 4px;
+      font: 11px 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      line-height: 10px;
+      vertical-align: middle;
+      background-color: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      box-shadow: inset 0 -1px 0 #e1e4e8;
+    }
+    table { border-collapse: collapse; display: block; width: 100%; overflow: auto; margin: 1em 0; word-break: keep-all; }
+    th, td { border: 1px solid #dfe2e5; padding: 6px 13px; text-align: left; }
+    th { background: #f6f8fa; font-weight: 600; }
+    tr:nth-child(even) { background: #fafbfc; }
+    blockquote {
+      border-left: 0.25em solid #dfe2e5;
+      margin: 1em 0; /* vertical margin so consecutive blockquotes stay separate, like GitHub */
+      padding: 0.5em 1em;
+      color: #6a737d;
+      background-color: #f6f8fa;
+    }
+    blockquote > :first-child { margin-top: 0; }
+    blockquote > :last-child { margin-bottom: 0; }
+    
+    .markdown-alert {
+      padding: 0.5em 1em;
+      margin: 1em 0;
+      border-left: 0.25em solid #0969da;
+      color: inherit;
+    }
+    .markdown-alert > :first-child { margin-top: 0; }
+    .markdown-alert > :last-child { margin-bottom: 0; }
+    .markdown-alert-title {
+      display: flex;
+      align-items: center;
+      font-weight: 500;
+      line-height: 1;
+      margin-bottom: 0.5em;
+    }
+    .markdown-alert-title .octicon {
+      margin-right: 0.5em;
+      fill: currentColor;
+      overflow: visible;
+      vertical-align: text-bottom;
+    }
+    .markdown-alert-note { border-left-color: #0969da; }
+    .markdown-alert-note > .markdown-alert-title { color: #0969da; }
+    .markdown-alert-tip { border-left-color: #1a7f37; }
+    .markdown-alert-tip > .markdown-alert-title { color: #1a7f37; }
+    .markdown-alert-important { border-left-color: #8250df; }
+    .markdown-alert-important > .markdown-alert-title { color: #8250df; }
+    .markdown-alert-warning { border-left-color: #9a6700; }
+    .markdown-alert-warning > .markdown-alert-title { color: #9a6700; }
+    .markdown-alert-caution { border-left-color: #d1242f; }
+    .markdown-alert-caution > .markdown-alert-title { color: #d1242f; }
+    hr { height: 0.25em; padding: 0; border: none; background-color: #e1e4e8; margin: 24px 0; overflow: hidden; }
+    img { max-width: 100%; height: auto; }
+    .plantuml-diagram { margin: 1.5em 0; text-align: left; width: fit-content; }
+    .plantuml-diagram svg { height: auto; }
+    .mermaid-diagram { margin: 1.5em 0; text-align: left; width: fit-content; }
+    .mermaid-diagram pre.mermaid { visibility: hidden; overflow: visible; border: none; margin: 0; padding: 0; font-size: inherit; line-height: inherit; }
+    .mermaid-diagram svg { visibility: visible; height: auto; }
+    .mermaid-error { visibility: visible; color: #d32f2f; border-left: 3px solid #d32f2f; padding: 0.5em; white-space: pre-wrap; font-size: 0.85em; }
+    .d2-diagram { margin: 1.5em 0; text-align: left; }
+    .d2-diagram pre.d2 { margin: 0; }
+    .d2-diagram svg { height: auto; }
+    .d2-error { color: #d32f2f; border-left: 3px solid #d32f2f; padding: 0.5em; white-space: pre-wrap; font-size: 0.85em; }
+    .katex { color: inherit; }
+    .katex-display { margin: 1em 0; overflow-x: auto; overflow-y: hidden; }
+    body.preview { margin: 0; max-width: none; padding: 46px 30px 1em; }
+    /* In print (PDF export, or printing an exported HTML file) the page margin takes the place of the room above the document. */
+    @media print { body { padding-top: 0; } }
+    .hljs { background: #f6f8fa; color: #24292e; }
+    .hljs-comment, .hljs-prolog, .hljs-doctype, .hljs-cdata { color: #6a737d; font-style: italic; }
+    .hljs-keyword, .hljs-selector-tag { color: #d73a49; }
+    .hljs-string, .hljs-doctag { color: #032f62; }
+    .hljs-number, .hljs-literal { color: #005cc5; }
+    .hljs-attr, .hljs-attribute { color: #005cc5; }
+    .hljs-name, .hljs-tag, .hljs-selector-id, .hljs-selector-class { color: #22863a; }
+    .hljs-title, .hljs-section, .hljs-function { color: #6f42c1; font-weight: bold; }
+    .hljs-built_in, .hljs-type { color: #e36209; }
+    .hljs-symbol, .hljs-bullet, .hljs-link { color: #0366d6; }
+    .hljs-meta { color: #e36209; }
+    .hljs-addition { background: #e6ffed; color: #22863a; }
+    .hljs-deletion { background: #ffeef0; color: #b31d28; }
+    .hljs-strong { font-weight: bold; }
+    .hljs-emphasis { font-style: italic; }
+    #toc-sidebar { background-color: #ffffff; color: #24292e; }
+    #toc-sidebar::before { background-color: #e1e4e8; }
+    #toc-sidebar .toc-toggle { color: #24292e; }
+    #toc-sidebar a { color: #0366d6; }
+    #toc-sidebar a:hover { background: #f6f8fa; }
+    #toc-sidebar a.active { color: #0366d6; border-left-color: #0366d6; }
+    #nav-toolbar button { color: #24292e; }
+    #nav-toolbar button:hover, #nav-toolbar button.active { background: #f6f8fa; }
+  </style>
+  <style id="katex-css">@font-face{font-display:block;font-family:KaTeX_AMS;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_AMS-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_AMS-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_AMS-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Caligraphic;font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Caligraphic-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Caligraphic-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Caligraphic-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Caligraphic;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Caligraphic-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Caligraphic-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Caligraphic-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Fraktur;font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Fraktur-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Fraktur-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Fraktur-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Fraktur;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Fraktur-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Fraktur-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Fraktur-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:italic;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-BoldItalic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-BoldItalic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-BoldItalic.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:italic;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Italic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Italic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Italic.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Main-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Math;font-style:italic;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Math-BoldItalic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Math-BoldItalic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Math-BoldItalic.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Math;font-style:italic;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Math-Italic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Math-Italic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Math-Italic.ttf) format("truetype")}@font-face{font-display:block;font-family:"KaTeX_SansSerif";font-style:normal;font-weight:700;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Bold.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Bold.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:"KaTeX_SansSerif";font-style:italic;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Italic.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Italic.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Italic.ttf) format("truetype")}@font-face{font-display:block;font-family:"KaTeX_SansSerif";font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_SansSerif-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Script;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Script-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Script-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Script-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size1;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size1-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size1-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size1-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size2;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size2-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size2-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size2-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size3;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size3-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size3-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size3-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size4;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size4-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size4-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Size4-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Typewriter;font-style:normal;font-weight:400;src:url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Typewriter-Regular.woff2) format("woff2"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Typewriter-Regular.woff) format("woff"),url(https://cdn.jsdelivr.net/npm/katex@0.16.35/dist/fonts/KaTeX_Typewriter-Regular.ttf) format("truetype")}.katex{font:normal 1.21em KaTeX_Main,Times New Roman,serif;line-height:1.2;position:relative;text-indent:0;text-rendering:auto}.katex *{-ms-high-contrast-adjust:none!important;border-color:currentColor}.katex .katex-version:after{content:"0.16.47"}.katex .katex-mathml{border:0;-webkit-clip-path:inset(50%);clip-path:inset(50%);height:1px;overflow:hidden;padding:0;position:absolute;width:1px}.katex .katex-html>.newline{display:block}.katex .base{position:relative;white-space:nowrap;width:-webkit-min-content;width:-moz-min-content;width:min-content}.katex .base,.katex .strut{display:inline-block}.katex .textbf{font-weight:700}.katex .textit{font-style:italic}.katex .textrm{font-family:KaTeX_Main}.katex .textsf{font-family:KaTeX_SansSerif}.katex .texttt{font-family:KaTeX_Typewriter}.katex .mathnormal{font-family:KaTeX_Math;font-style:italic}.katex .mathit{font-family:KaTeX_Main;font-style:italic}.katex .mathrm{font-style:normal}.katex .mathbf{font-family:KaTeX_Main;font-weight:700}.katex .boldsymbol{font-family:KaTeX_Math;font-style:italic;font-weight:700}.katex .amsrm,.katex .mathbb,.katex .textbb{font-family:KaTeX_AMS}.katex .mathcal{font-family:KaTeX_Caligraphic}.katex .mathfrak,.katex .textfrak{font-family:KaTeX_Fraktur}.katex .mathboldfrak,.katex .textboldfrak{font-family:KaTeX_Fraktur;font-weight:700}.katex .mathtt{font-family:KaTeX_Typewriter}.katex .mathscr,.katex .textscr{font-family:KaTeX_Script}.katex .mathsf,.katex .textsf{font-family:KaTeX_SansSerif}.katex .mathboldsf,.katex .textboldsf{font-family:KaTeX_SansSerif;font-weight:700}.katex .mathitsf,.katex .mathsfit,.katex .textitsf{font-family:KaTeX_SansSerif;font-style:italic}.katex .mainrm{font-family:KaTeX_Main;font-style:normal}.katex .vlist-t{border-collapse:collapse;display:inline-table;table-layout:fixed}.katex .vlist-r{display:table-row}.katex .vlist{display:table-cell;position:relative;vertical-align:bottom}.katex .vlist>span{display:block;height:0;position:relative}.katex .vlist>span>span{display:inline-block}.katex .vlist>span>.pstrut{overflow:hidden;width:0}.katex .vlist-t2{margin-right:-2px}.katex .vlist-s{display:table-cell;font-size:1px;min-width:2px;vertical-align:bottom;width:2px}.katex .vbox{align-items:baseline;display:inline-flex;flex-direction:column}.katex .hbox{width:100%}.katex .hbox,.katex .thinbox{display:inline-flex;flex-direction:row}.katex .thinbox{max-width:0;width:0}.katex .msupsub{text-align:left}.katex .mfrac>span>span{text-align:center}.katex .mfrac .frac-line{border-bottom-style:solid;display:inline-block;width:100%}.katex .hdashline,.katex .hline,.katex .mfrac .frac-line,.katex .overline .overline-line,.katex .rule,.katex .underline .underline-line{min-height:1px}.katex .mspace{display:inline-block}.katex .smash{display:inline;line-height:0}.katex .clap,.katex .llap,.katex .rlap{position:relative;width:0}.katex .clap>.inner,.katex .llap>.inner,.katex .rlap>.inner{position:absolute}.katex .clap>.fix,.katex .llap>.fix,.katex .rlap>.fix{display:inline-block}.katex .llap>.inner{right:0}.katex .clap>.inner,.katex .rlap>.inner{left:0}.katex .clap>.inner>span{margin-left:-50%;margin-right:50%}.katex .rule{border:0 solid;display:inline-block;position:relative}.katex .hline,.katex .overline .overline-line,.katex .underline .underline-line{border-bottom-style:solid;display:inline-block;width:100%}.katex .hdashline{border-bottom-style:dashed;display:inline-block;width:100%}.katex .sqrt>.root{margin-left:.2777777778em;margin-right:-.5555555556em}.katex .fontsize-ensurer.reset-size1.size1,.katex .sizing.reset-size1.size1{font-size:1em}.katex .fontsize-ensurer.reset-size1.size2,.katex .sizing.reset-size1.size2{font-size:1.2em}.katex .fontsize-ensurer.reset-size1.size3,.katex .sizing.reset-size1.size3{font-size:1.4em}.katex .fontsize-ensurer.reset-size1.size4,.katex .sizing.reset-size1.size4{font-size:1.6em}.katex .fontsize-ensurer.reset-size1.size5,.katex .sizing.reset-size1.size5{font-size:1.8em}.katex .fontsize-ensurer.reset-size1.size6,.katex .sizing.reset-size1.size6{font-size:2em}.katex .fontsize-ensurer.reset-size1.size7,.katex .sizing.reset-size1.size7{font-size:2.4em}.katex .fontsize-ensurer.reset-size1.size8,.katex .sizing.reset-size1.size8{font-size:2.88em}.katex .fontsize-ensurer.reset-size1.size9,.katex .sizing.reset-size1.size9{font-size:3.456em}.katex .fontsize-ensurer.reset-size1.size10,.katex .sizing.reset-size1.size10{font-size:4.148em}.katex .fontsize-ensurer.reset-size1.size11,.katex .sizing.reset-size1.size11{font-size:4.976em}.katex .fontsize-ensurer.reset-size2.size1,.katex .sizing.reset-size2.size1{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size2.size2,.katex .sizing.reset-size2.size2{font-size:1em}.katex .fontsize-ensurer.reset-size2.size3,.katex .sizing.reset-size2.size3{font-size:1.1666666667em}.katex .fontsize-ensurer.reset-size2.size4,.katex .sizing.reset-size2.size4{font-size:1.3333333333em}.katex .fontsize-ensurer.reset-size2.size5,.katex .sizing.reset-size2.size5{font-size:1.5em}.katex .fontsize-ensurer.reset-size2.size6,.katex .sizing.reset-size2.size6{font-size:1.6666666667em}.katex .fontsize-ensurer.reset-size2.size7,.katex .sizing.reset-size2.size7{font-size:2em}.katex .fontsize-ensurer.reset-size2.size8,.katex .sizing.reset-size2.size8{font-size:2.4em}.katex .fontsize-ensurer.reset-size2.size9,.katex .sizing.reset-size2.size9{font-size:2.88em}.katex .fontsize-ensurer.reset-size2.size10,.katex .sizing.reset-size2.size10{font-size:3.4566666667em}.katex .fontsize-ensurer.reset-size2.size11,.katex .sizing.reset-size2.size11{font-size:4.1466666667em}.katex .fontsize-ensurer.reset-size3.size1,.katex .sizing.reset-size3.size1{font-size:.7142857143em}.katex .fontsize-ensurer.reset-size3.size2,.katex .sizing.reset-size3.size2{font-size:.8571428571em}.katex .fontsize-ensurer.reset-size3.size3,.katex .sizing.reset-size3.size3{font-size:1em}.katex .fontsize-ensurer.reset-size3.size4,.katex .sizing.reset-size3.size4{font-size:1.1428571429em}.katex .fontsize-ensurer.reset-size3.size5,.katex .sizing.reset-size3.size5{font-size:1.2857142857em}.katex .fontsize-ensurer.reset-size3.size6,.katex .sizing.reset-size3.size6{font-size:1.4285714286em}.katex .fontsize-ensurer.reset-size3.size7,.katex .sizing.reset-size3.size7{font-size:1.7142857143em}.katex .fontsize-ensurer.reset-size3.size8,.katex .sizing.reset-size3.size8{font-size:2.0571428571em}.katex .fontsize-ensurer.reset-size3.size9,.katex .sizing.reset-size3.size9{font-size:2.4685714286em}.katex .fontsize-ensurer.reset-size3.size10,.katex .sizing.reset-size3.size10{font-size:2.9628571429em}.katex .fontsize-ensurer.reset-size3.size11,.katex .sizing.reset-size3.size11{font-size:3.5542857143em}.katex .fontsize-ensurer.reset-size4.size1,.katex .sizing.reset-size4.size1{font-size:.625em}.katex .fontsize-ensurer.reset-size4.size2,.katex .sizing.reset-size4.size2{font-size:.75em}.katex .fontsize-ensurer.reset-size4.size3,.katex .sizing.reset-size4.size3{font-size:.875em}.katex .fontsize-ensurer.reset-size4.size4,.katex .sizing.reset-size4.size4{font-size:1em}.katex .fontsize-ensurer.reset-size4.size5,.katex .sizing.reset-size4.size5{font-size:1.125em}.katex .fontsize-ensurer.reset-size4.size6,.katex .sizing.reset-size4.size6{font-size:1.25em}.katex .fontsize-ensurer.reset-size4.size7,.katex .sizing.reset-size4.size7{font-size:1.5em}.katex .fontsize-ensurer.reset-size4.size8,.katex .sizing.reset-size4.size8{font-size:1.8em}.katex .fontsize-ensurer.reset-size4.size9,.katex .sizing.reset-size4.size9{font-size:2.16em}.katex .fontsize-ensurer.reset-size4.size10,.katex .sizing.reset-size4.size10{font-size:2.5925em}.katex .fontsize-ensurer.reset-size4.size11,.katex .sizing.reset-size4.size11{font-size:3.11em}.katex .fontsize-ensurer.reset-size5.size1,.katex .sizing.reset-size5.size1{font-size:.5555555556em}.katex .fontsize-ensurer.reset-size5.size2,.katex .sizing.reset-size5.size2{font-size:.6666666667em}.katex .fontsize-ensurer.reset-size5.size3,.katex .sizing.reset-size5.size3{font-size:.7777777778em}.katex .fontsize-ensurer.reset-size5.size4,.katex .sizing.reset-size5.size4{font-size:.8888888889em}.katex .fontsize-ensurer.reset-size5.size5,.katex .sizing.reset-size5.size5{font-size:1em}.katex .fontsize-ensurer.reset-size5.size6,.katex .sizing.reset-size5.size6{font-size:1.1111111111em}.katex .fontsize-ensurer.reset-size5.size7,.katex .sizing.reset-size5.size7{font-size:1.3333333333em}.katex .fontsize-ensurer.reset-size5.size8,.katex .sizing.reset-size5.size8{font-size:1.6em}.katex .fontsize-ensurer.reset-size5.size9,.katex .sizing.reset-size5.size9{font-size:1.92em}.katex .fontsize-ensurer.reset-size5.size10,.katex .sizing.reset-size5.size10{font-size:2.3044444444em}.katex .fontsize-ensurer.reset-size5.size11,.katex .sizing.reset-size5.size11{font-size:2.7644444444em}.katex .fontsize-ensurer.reset-size6.size1,.katex .sizing.reset-size6.size1{font-size:.5em}.katex .fontsize-ensurer.reset-size6.size2,.katex .sizing.reset-size6.size2{font-size:.6em}.katex .fontsize-ensurer.reset-size6.size3,.katex .sizing.reset-size6.size3{font-size:.7em}.katex .fontsize-ensurer.reset-size6.size4,.katex .sizing.reset-size6.size4{font-size:.8em}.katex .fontsize-ensurer.reset-size6.size5,.katex .sizing.reset-size6.size5{font-size:.9em}.katex .fontsize-ensurer.reset-size6.size6,.katex .sizing.reset-size6.size6{font-size:1em}.katex .fontsize-ensurer.reset-size6.size7,.katex .sizing.reset-size6.size7{font-size:1.2em}.katex .fontsize-ensurer.reset-size6.size8,.katex .sizing.reset-size6.size8{font-size:1.44em}.katex .fontsize-ensurer.reset-size6.size9,.katex .sizing.reset-size6.size9{font-size:1.728em}.katex .fontsize-ensurer.reset-size6.size10,.katex .sizing.reset-size6.size10{font-size:2.074em}.katex .fontsize-ensurer.reset-size6.size11,.katex .sizing.reset-size6.size11{font-size:2.488em}.katex .fontsize-ensurer.reset-size7.size1,.katex .sizing.reset-size7.size1{font-size:.4166666667em}.katex .fontsize-ensurer.reset-size7.size2,.katex .sizing.reset-size7.size2{font-size:.5em}.katex .fontsize-ensurer.reset-size7.size3,.katex .sizing.reset-size7.size3{font-size:.5833333333em}.katex .fontsize-ensurer.reset-size7.size4,.katex .sizing.reset-size7.size4{font-size:.6666666667em}.katex .fontsize-ensurer.reset-size7.size5,.katex .sizing.reset-size7.size5{font-size:.75em}.katex .fontsize-ensurer.reset-size7.size6,.katex .sizing.reset-size7.size6{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size7.size7,.katex .sizing.reset-size7.size7{font-size:1em}.katex .fontsize-ensurer.reset-size7.size8,.katex .sizing.reset-size7.size8{font-size:1.2em}.katex .fontsize-ensurer.reset-size7.size9,.katex .sizing.reset-size7.size9{font-size:1.44em}.katex .fontsize-ensurer.reset-size7.size10,.katex .sizing.reset-size7.size10{font-size:1.7283333333em}.katex .fontsize-ensurer.reset-size7.size11,.katex .sizing.reset-size7.size11{font-size:2.0733333333em}.katex .fontsize-ensurer.reset-size8.size1,.katex .sizing.reset-size8.size1{font-size:.3472222222em}.katex .fontsize-ensurer.reset-size8.size2,.katex .sizing.reset-size8.size2{font-size:.4166666667em}.katex .fontsize-ensurer.reset-size8.size3,.katex .sizing.reset-size8.size3{font-size:.4861111111em}.katex .fontsize-ensurer.reset-size8.size4,.katex .sizing.reset-size8.size4{font-size:.5555555556em}.katex .fontsize-ensurer.reset-size8.size5,.katex .sizing.reset-size8.size5{font-size:.625em}.katex .fontsize-ensurer.reset-size8.size6,.katex .sizing.reset-size8.size6{font-size:.6944444444em}.katex .fontsize-ensurer.reset-size8.size7,.katex .sizing.reset-size8.size7{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size8.size8,.katex .sizing.reset-size8.size8{font-size:1em}.katex .fontsize-ensurer.reset-size8.size9,.katex .sizing.reset-size8.size9{font-size:1.2em}.katex .fontsize-ensurer.reset-size8.size10,.katex .sizing.reset-size8.size10{font-size:1.4402777778em}.katex .fontsize-ensurer.reset-size8.size11,.katex .sizing.reset-size8.size11{font-size:1.7277777778em}.katex .fontsize-ensurer.reset-size9.size1,.katex .sizing.reset-size9.size1{font-size:.2893518519em}.katex .fontsize-ensurer.reset-size9.size2,.katex .sizing.reset-size9.size2{font-size:.3472222222em}.katex .fontsize-ensurer.reset-size9.size3,.katex .sizing.reset-size9.size3{font-size:.4050925926em}.katex .fontsize-ensurer.reset-size9.size4,.katex .sizing.reset-size9.size4{font-size:.462962963em}.katex .fontsize-ensurer.reset-size9.size5,.katex .sizing.reset-size9.size5{font-size:.5208333333em}.katex .fontsize-ensurer.reset-size9.size6,.katex .sizing.reset-size9.size6{font-size:.5787037037em}.katex .fontsize-ensurer.reset-size9.size7,.katex .sizing.reset-size9.size7{font-size:.6944444444em}.katex .fontsize-ensurer.reset-size9.size8,.katex .sizing.reset-size9.size8{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size9.size9,.katex .sizing.reset-size9.size9{font-size:1em}.katex .fontsize-ensurer.reset-size9.size10,.katex .sizing.reset-size9.size10{font-size:1.2002314815em}.katex .fontsize-ensurer.reset-size9.size11,.katex .sizing.reset-size9.size11{font-size:1.4398148148em}.katex .fontsize-ensurer.reset-size10.size1,.katex .sizing.reset-size10.size1{font-size:.2410800386em}.katex .fontsize-ensurer.reset-size10.size2,.katex .sizing.reset-size10.size2{font-size:.2892960463em}.katex .fontsize-ensurer.reset-size10.size3,.katex .sizing.reset-size10.size3{font-size:.337512054em}.katex .fontsize-ensurer.reset-size10.size4,.katex .sizing.reset-size10.size4{font-size:.3857280617em}.katex .fontsize-ensurer.reset-size10.size5,.katex .sizing.reset-size10.size5{font-size:.4339440694em}.katex .fontsize-ensurer.reset-size10.size6,.katex .sizing.reset-size10.size6{font-size:.4821600771em}.katex .fontsize-ensurer.reset-size10.size7,.katex .sizing.reset-size10.size7{font-size:.5785920926em}.katex .fontsize-ensurer.reset-size10.size8,.katex .sizing.reset-size10.size8{font-size:.6943105111em}.katex .fontsize-ensurer.reset-size10.size9,.katex .sizing.reset-size10.size9{font-size:.8331726133em}.katex .fontsize-ensurer.reset-size10.size10,.katex .sizing.reset-size10.size10{font-size:1em}.katex .fontsize-ensurer.reset-size10.size11,.katex .sizing.reset-size10.size11{font-size:1.1996142719em}.katex .fontsize-ensurer.reset-size11.size1,.katex .sizing.reset-size11.size1{font-size:.2009646302em}.katex .fontsize-ensurer.reset-size11.size2,.katex .sizing.reset-size11.size2{font-size:.2411575563em}.katex .fontsize-ensurer.reset-size11.size3,.katex .sizing.reset-size11.size3{font-size:.2813504823em}.katex .fontsize-ensurer.reset-size11.size4,.katex .sizing.reset-size11.size4{font-size:.3215434084em}.katex .fontsize-ensurer.reset-size11.size5,.katex .sizing.reset-size11.size5{font-size:.3617363344em}.katex .fontsize-ensurer.reset-size11.size6,.katex .sizing.reset-size11.size6{font-size:.4019292605em}.katex .fontsize-ensurer.reset-size11.size7,.katex .sizing.reset-size11.size7{font-size:.4823151125em}.katex .fontsize-ensurer.reset-size11.size8,.katex .sizing.reset-size11.size8{font-size:.578778135em}.katex .fontsize-ensurer.reset-size11.size9,.katex .sizing.reset-size11.size9{font-size:.6945337621em}.katex .fontsize-ensurer.reset-size11.size10,.katex .sizing.reset-size11.size10{font-size:.8336012862em}.katex .fontsize-ensurer.reset-size11.size11,.katex .sizing.reset-size11.size11{font-size:1em}.katex .delimsizing.size1{font-family:KaTeX_Size1}.katex .delimsizing.size2{font-family:KaTeX_Size2}.katex .delimsizing.size3{font-family:KaTeX_Size3}.katex .delimsizing.size4{font-family:KaTeX_Size4}.katex .delimsizing.mult .delim-size1>span{font-family:KaTeX_Size1}.katex .delimsizing.mult .delim-size4>span{font-family:KaTeX_Size4}.katex .nulldelimiter{display:inline-block;width:.12em}.katex .delimcenter,.katex .op-symbol{position:relative}.katex .op-symbol.small-op{font-family:KaTeX_Size1}.katex .op-symbol.large-op{font-family:KaTeX_Size2}.katex .accent>.vlist-t,.katex .op-limits>.vlist-t{text-align:center}.katex .accent .accent-body{position:relative}.katex .accent .accent-body:not(.accent-full){width:0}.katex .overlay{display:block}.katex .mtable .vertical-separator{display:inline-block;min-width:1px}.katex .mtable .arraycolsep{display:inline-block}.katex .mtable .col-align-c>.vlist-t{text-align:center}.katex .mtable .col-align-l>.vlist-t{text-align:left}.katex .mtable .col-align-r>.vlist-t{text-align:right}.katex .svg-align{text-align:left}.katex svg{fill:currentColor;stroke:currentColor;display:block;height:inherit;position:absolute;width:100%}.katex svg path{stroke:none}.katex svg{fill-rule:nonzero;fill-opacity:1;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1}.katex img{border-style:none;max-height:none;max-width:none;min-height:0;min-width:0}.katex .stretchy{display:block;overflow:hidden;position:relative;width:100%}.katex .stretchy:after,.katex .stretchy:before{content:""}.katex .hide-tail{overflow:hidden;position:relative;width:100%}.katex .halfarrow-left{left:0;overflow:hidden;position:absolute;width:50.2%}.katex .halfarrow-right{overflow:hidden;position:absolute;right:0;width:50.2%}.katex .brace-left{left:0;overflow:hidden;position:absolute;width:25.1%}.katex .brace-center{left:25%;overflow:hidden;position:absolute;width:50%}.katex .brace-right{overflow:hidden;position:absolute;right:0;width:25.1%}.katex .x-arrow-pad{padding:0 .5em}.katex .cd-arrow-pad{padding:0 .55556em 0 .27778em}.katex .mover,.katex .munder,.katex .x-arrow{text-align:center}.katex .boxpad{padding:0 .3em}.katex .fbox,.katex .fcolorbox{border:.04em solid;box-sizing:border-box}.katex .cancel-pad{padding:0 .2em}.katex .cancel-lap{margin-left:-.2em;margin-right:-.2em}.katex .sout{border-bottom-style:solid;border-bottom-width:.08em}.katex .angl{border-right:.049em solid;border-top:.049em solid;box-sizing:border-box;margin-right:.03889em}.katex .anglpad{padding:0 .03889em}.katex .eqn-num:before{content:"(" counter(katexEqnNo) ")";counter-increment:katexEqnNo}.katex .mml-eqn-num:before{content:"(" counter(mmlEqnNo) ")";counter-increment:mmlEqnNo}.katex .mtr-glue{width:50%}.katex .cd-vert-arrow{display:inline-block;position:relative}.katex .cd-label-left{display:inline-block;position:absolute;right:calc(50% + .3em);text-align:left}.katex .cd-label-right{display:inline-block;left:calc(50% + .3em);position:absolute;text-align:right}.katex-display{display:block;margin:1em 0;text-align:center}.katex-display>.katex{display:block;text-align:center;white-space:nowrap}.katex-display>.katex>.katex-html{display:block;position:relative}.katex-display>.katex>.katex-html>.tag{position:absolute;right:0}.katex-display.leqno>.katex>.katex-html>.tag{left:0;right:auto}.katex-display.fleqn>.katex{padding-left:2em;text-align:left}body{counter-reset:katexEqnNo mmlEqnNo}
+</style>
+</head>
+<body>
+<!-- NOTE: This ID is also referenced in src/webview/scroll-sync-webview.ts (applyPendingBodyUpdate). -->
+<div id="preview-content">
+<h1 id="03-metrics-collection-python-harness-complete-metrics-reference">03 — Metrics Collection, Python Harness &amp; Complete Metrics Reference</h1>
+<p><code>rusty_dedup</code> provides full-stack APM observability combining <strong>in-process lock-free Rust domain instrumentation</strong> with a <strong>zero-dependency external Python Metrics Harness</strong> ([scripts/rusty_dedup_metrics_harness.py](file:///Users/maildev/coding/rusty_dedup/scripts/rusty_dedup_metrics_harness.py)) that introspects OS-kernel thread states, child <code>ffmpeg</code>/<code>ffprobe</code> processes, and host CPU/RAM/GPU hardware via native C syscalls.</p>
+<hr>
+<h2 id="1-why-a-hybrid-python-metrics-harness">1. Why a Hybrid Python Metrics Harness?</h2>
+<p>An external OS process using native unprivileged C syscalls can observe <strong>everything the OS kernel knows</strong> about <code>rusty_dedup</code>'s threads and child processes — with zero root/admin privileges and zero runtime overhead on Rust's hot loop:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">OS</th>
+<th style="text-align:left">Unprivileged Native Syscall / API Used by Harness</th>
+<th style="text-align:left">Kernel Metrics Captured Externally</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>macOS</strong> <em>(Apple Silicon &amp; Intel)</em></td>
+<td style="text-align:left"><code>ctypes</code> → <code>/usr/lib/libSystem.B.dylib</code>: <code>proc_pidinfo(PROC_PIDLISTTHREADS=6)</code>, <code>proc_pidinfo(PROC_PIDTHREADINFO=5)</code>, <code>proc_pid_rusage(RUSAGE_INFO_V4=4)</code>, <code>proc_listchildpids()</code>, <code>proc_name()</code></td>
+<td style="text-align:left">Exact Rust thread names (<code>pth_name</code>), per-thread user/system CPU ns, instantaneous CPU %, thread run state (<code>running</code>, <code>waiting</code>, <code>disk_io</code>), resident memory &amp; disk read/write bytes for <code>rusty_dedup</code> and live child <code>ffmpeg</code>/<code>ffprobe</code> processes. <em>(Avoids Mach <code>task_for_pid()</code> which macOS SIP blocks.)</em></td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Linux</strong></td>
+<td style="text-align:left">Direct <code>/proc/&lt;pid&gt;/task/&lt;tid&gt;/{comm,stat,children}</code>, <code>/proc/&lt;pid&gt;/{statm,io}</code></td>
+<td style="text-align:left">Exact Rust thread names, per-thread user/kernel CPU time, scheduler state (<code>R</code>/<code>S</code>/<code>D</code>), RSS, disk read/write bytes, and child <code>ffmpeg</code>/<code>ffprobe</code> tree.</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Windows</strong></td>
+<td style="text-align:left"><code>ctypes</code> → <code>kernel32.dll</code>: <code>CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD)</code>, <code>OpenThread(THREAD_QUERY_LIMITED_INFORMATION)</code>, <code>GetThreadTimes()</code>, <code>GetThreadDescription()</code></td>
+<td style="text-align:left">Per-thread names (Win10+), kernel &amp; user CPU times, thread enumeration across <code>rusty_dedup.exe</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>However, the OS kernel cannot see <strong>application-domain semantics</strong> (such as H.265 <code>8.0×</code> realtime decode speed, 24-bucket job latency histograms, bounded LRU hit rates, SQLite3 WAL commit batch sizes, duplicate funnel short-circuits, or <code>ffprobe</code> bitrate extraction sources).</p>
+<p>Therefore, <code>rusty_dedup</code> flushes a tiny <strong>atomic JSON telemetry snapshot</strong> (<code>/tmp/rusty_dedup_telemetry_&lt;pid&gt;.json</code>) every <code>500 ms</code> (plus a final <code>finished: true</code> snapshot on exit). The Python harness merges <strong>all three layers</strong> into a single <strong>Prometheus Text Exposition v0.0.4</strong> endpoint (<code>GET :9185/metrics</code>) — and holds the endpoint alive for <code>--linger-secs 20</code> after <code>rusty_dedup</code> exits so Prometheus never misses the final end-of-run counters!</p>
+<hr>
+<h2 id="2-single-source-of-truth-dedup_configyaml-invocation-modes">2. Single Source of Truth (<code>dedup_config.yaml</code>) &amp; Invocation Modes</h2>
+<p>Both <code>rusty_dedup</code> (standalone) and <code>scripts/rusty_dedup_metrics_harness.py</code> read the <code>telemetry.prometheus</code> block in [dedup_config.yaml](file:///Users/maildev/coding/rusty_dedup/dedup_config.yaml) by default (<code>listen_addr: 0.0.0.0:9185</code>, <code>pushgateway_url</code>, <code>push_interval_secs</code>, <code>job_name</code>, <code>textfile_path</code>):</p>
+<ul>
+<li><strong>Harness Mode (Recommended)</strong>:<pre class="hljs"><code class="language-bash">python3 scripts/rusty_dedup_metrics_harness.py -- \
+    ./target/release/rusty_dedup /Volumes/MediaA /Volumes/MediaB -o duplicates.json
+</code></pre>
+The harness sets <code>RUSTY_DEDUP_HARNESS_ACTIVE=1</code> and <code>RUSTY_DEDUP_TELEMETRY_SNAPSHOT=/tmp/rusty_dedup_telemetry_&lt;pid&gt;.json</code> in the child environment, so <code>rusty_dedup</code> automatically skips binding <code>:9185</code> itself (zero port conflict), forwards <code>SIGINT</code>/<code>SIGTERM</code>, and streams stdout/stderr transparently.</li>
+<li><strong>Attach Mode</strong>:<pre class="hljs"><code class="language-bash">python3 scripts/rusty_dedup_metrics_harness.py --pid 12345 \
+    --snapshot /tmp/rusty_dedup_telemetry_12345.json
+</code></pre>
+</li>
+<li><strong>Self-Test Mode</strong> (empirically verifies cross-PID OS thread syscalls, host hardware samplers, and Prometheus v0.0.4 rendering):<pre class="hljs"><code class="language-bash">python3 scripts/rusty_dedup_metrics_harness.py --self-test
+</code></pre>
+</li>
+<li><strong>Standalone Rust Mode</strong>: Running <code>./target/release/rusty_dedup ...</code> directly (without the harness) still serves Layer 1 metrics on <code>:9185/metrics</code> via Rust's built-in <code>PrometheusScrapeServer</code> and prints the full end-of-run APM dashboard.</li>
+</ul>
+<hr>
+<h2 id="3-component-diagram-scriptsrusty_dedup_metrics_harnesspy">3. Component Diagram (<code>scripts/rusty_dedup_metrics_harness.py</code>)</h2>
+<div class="mermaid-diagram" data-vscode-context='{"webviewSection":"diagram","preventDefaultContextMenuItems":false}'><pre class="mermaid">flowchart TB
+    subgraph CLI[&quot;CLI &amp; Config Layer&quot;]
+        ARG[&quot;argparse CLI\n(--config, --listen, --pid, --snapshot,\n--poll-interval, --linger-secs, --self-test)&quot;]
+        YAML[&quot;load_dedup_config_yaml()\nReads dedup_config.yaml\n(Single Source of Truth)&quot;]
+        PROC[&quot;Child Lifecycle Manager\nsubprocess.Popen + SIGINT/SIGTERM forward\n+ Post-Exit Linger Window&quot;]
+    end
+
+    subgraph Samplers[&quot;3-Layer Telemetry Collectors (Zero Pip Dependencies)&quot;]
+        SNAP_R[&quot;Snapshot Reader\nread_snapshot_json()\nReads 500ms atomic Rust snapshot&quot;]
+        OS_INSP[&quot;ProcessThreadIntrospector\nmacOS libproc (ctypes)\nLinux /proc/&lt;pid&gt;/task\nWindows kernel32 (ctypes)&quot;]
+        HOST_HW[&quot;Host Hardware Samplers\nCpuTickTracker (Mach / procfs / Win32)\nget_load_averages_syscall()\nget_memory_stats_gb_syscall()\nsample_gpu_stats_syscall() (IOKit / NVML)&quot;]
+    end
+
+    subgraph Export[&quot;Prometheus Exposition &amp; Exporters&quot;]
+        MERGE[&quot;render_merged_prometheus()\nMerges Layer 1 + Layer 2 + Layer 3\nPrometheus Text Format v0.0.4&quot;]
+        STATE[&quot;MetricsState (Thread-Safe Cache)&quot;]
+        HTTP[&quot;ThreadingHTTPServer\nGET /metrics &amp; GET /healthz&quot;]
+        PUSH[&quot;push_prometheus_payload()\nHTTP PUT Pushgateway (optional)&quot;]
+        TEXT[&quot;write_textfile_atomic()\nnode_exporter .prom file (optional)&quot;]
+    end
+
+    ARG --&gt; YAML
+    ARG --&gt; PROC
+    YAML --&gt; HTTP
+    YAML --&gt; PUSH
+    YAML --&gt; TEXT
+
+    PROC --&gt;|&quot;Target PID&quot;| OS_INSP
+    PROC --&gt;|&quot;Snapshot Path&quot;| SNAP_R
+
+    SNAP_R --&gt; MERGE
+    OS_INSP --&gt; MERGE
+    HOST_HW --&gt; MERGE
+
+    MERGE --&gt; STATE
+    STATE --&gt; HTTP
+    MERGE --&gt; PUSH
+    MERGE --&gt; TEXT
+</pre></div>
+<hr>
+<h2 id="4-end-to-end-observability-architecture-diagram">4. End-to-End Observability Architecture Diagram</h2>
+<div class="mermaid-diagram" data-vscode-context='{"webviewSection":"diagram","preventDefaultContextMenuItems":false}'><pre class="mermaid">flowchart LR
+    subgraph Host[&quot;Host Machine (macOS Apple Silicon / Linux / Windows)&quot;]
+        RUST[&quot;rusty_dedup (Rust Binary)\nLock-Free TelemetryRegistry\n(24-Bucket Histograms: 10µs..1800s)&quot;]
+        FFMPEG[&quot;Child Subprocesses\nffmpeg (GPU/CPU) &amp; ffprobe&quot;]
+        SNAP[(&quot;Atomic JSON Snapshot\n/tmp/rusty_dedup_telemetry_&lt;pid&gt;.json\n(Flushed every 500ms + final)&quot;)]
+        KERNEL[&quot;OS Kernel Syscalls\nlibproc / procfs / Win32\nMach / IOKit / NVML&quot;]
+        HARNESS[&quot;Python Metrics Harness\nscripts/rusty_dedup_metrics_harness.py\nhttp://0.0.0.0:9185/metrics&quot;]
+
+        RUST --&gt;|&quot;Spawns&quot;| FFMPEG
+        RUST --&gt;|&quot;Atomic tmp+rename&quot;| SNAP
+        SNAP --&gt;|&quot;Layer 1: Domain&quot;| HARNESS
+        RUST -.-&gt;|&quot;Layer 2: OS Threads &amp; Disk I/O&quot;| KERNEL
+        FFMPEG -.-&gt;|&quot;Layer 2: Child RSS &amp; I/O&quot;| KERNEL
+        KERNEL --&gt;|&quot;Layer 2 + Layer 3 (Host CPU/RAM/GPU)&quot;| HARNESS
+    end
+
+    subgraph Monitoring[&quot;Observability Stack&quot;]
+        PROM[&quot;Prometheus Server\nscrape_configs job: rusty_dedup\n(127.0.0.1:9185, app='rusty_dedup')&quot;]
+        PG[&quot;Optional Pushgateway\nPUT /metrics/job/rusty_dedup/...&quot;]
+        GRAF[&quot;Grafana Dashboards\nUnified app, nodename, host_os labels&quot;]
+    end
+
+    HARNESS --&gt;|&quot;Pull Scrape GET /metrics&quot;| PROM
+    HARNESS -.-&gt;|&quot;Optional Push&quot;| PG
+    PG -.-&gt; PROM
+    PROM --&gt; GRAF
+</pre></div>
+<hr>
+<h2 id="5-24-bucket-latency-histogram-design">5. 24-Bucket Latency Histogram Design</h2>
+<p>All latency histograms in <code>src/telemetry.rs</code> use <strong>24 lock-free Prometheus-aligned buckets</strong> spanning <strong>8 orders of magnitude</strong> (<code>10µs</code> to <code>30 minutes</code>):</p>
+<pre class="hljs"><code class="language-text">10µs, 25µs, 50µs, 100µs, 250µs, 500µs,
+1ms, 2.5ms, 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms,
+1s, 2.5s, 5s, 15s, 60s, 120s, 300s, 600s, 1800s, +Inf
+</code></pre>
+<ul>
+<li><strong>Why 10µs at the low end?</strong> SQLite3 WAL cache hits (<code>~15–30µs</code>) and Pass-1 pair evaluations (<code>~5–20µs</code>) are accurately resolved instead of clamping at <code>0.1ms</code>.</li>
+<li><strong>Why 1800s at the high end?</strong> Long 1–2 hour 4K/H.265 full-video decodes (<code>100s–500s</code>) get accurate <code>p95</code> and <code>p99</code> quantiles instead of overflowing a <code>60s</code> cap and collapsing <code>p95 == max</code>.</li>
+</ul>
+<hr>
+<h2 id="6-complete-metrics-catalog-all-3-layers">6. Complete Metrics Catalog (All 3 Layers)</h2>
+<h3 id="layer-1-rust-in-process-application-pipeline-metrics-srcprometheusrs-srctelemetryrs">Layer 1 — Rust In-Process Application &amp; Pipeline Metrics (<code>src/prometheus.rs</code> &amp; <code>src/telemetry.rs</code>)</h3>
+<h4 id="61-session-metadata-lifecycle">6.1 Session Metadata &amp; Lifecycle</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Metric Name &amp; Type</th>
+<th style="text-align:left">Labels</th>
+<th style="text-align:left">What It Means</th>
+<th style="text-align:left">Why We Collect It</th>
+<th style="text-align:left">Insights &amp; Tuning Actions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_info</code> (<code>gauge</code>, value <code>1</code>)</td>
+<td style="text-align:left"><code>version</code>, <code>session_id</code>, <code>hw_backend</code>, <code>hw_scale</code></td>
+<td style="text-align:left">Static metadata identifying the running binary version, deterministic session hash, active GPU backend (<code>videotoolbox</code>, <code>cuda</code>, <code>cpu</code>), and downscale target (<code>72x72</code>).</td>
+<td style="text-align:left">Tags every Grafana run with exact hardware &amp; session context so regressions across runs are immediately explainable.</td>
+<td style="text-align:left">Confirms expected GPU backend and <code>72x72</code> exact-integer downscaling are active during unattended overnight runs.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_phase</code> (<code>gauge</code>, <code>0</code> or <code>1</code>)</td>
+<td style="text-align:left"><code>phase</code> (<code>config_test</code>, <code>walk</code>, <code>pass1_ffprobe</code>, <code>pass1_keyframes</code>, <code>pass1_eval</code>, <code>pass2_eval</code>, <code>output</code>, <code>done</code>)</td>
+<td style="text-align:left">One-hot indicator of which pipeline stage is currently executing.</td>
+<td style="text-align:left">Lets Grafana overlay phase transitions on CPU/GPU/disk graphs.</td>
+<td style="text-align:left">Pinpoints how much total wall time is spent in Walk vs. Pass 1 probing vs. Pass 2 decoding.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_uptime_seconds</code> (<code>gauge</code>)</td>
+<td style="text-align:left"><em>(none)</em></td>
+<td style="text-align:left">Wall-clock elapsed seconds since <code>rusty_dedup</code> started.</td>
+<td style="text-align:left">Tracks total runtime duration for SLA and ETA calculations.</td>
+<td style="text-align:left">Correlates elapsed wall time against jobs completed to project finish times for 300K-file scans.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="62-per-thread-use-utilization-saturation-errors-red-rate-errors-duration">6.2 Per-Thread USE (Utilization, Saturation, Errors) + RED (Rate, Errors, Duration)</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Metric Name &amp; Type</th>
+<th style="text-align:left">Labels</th>
+<th style="text-align:left">What It Means</th>
+<th style="text-align:left">Why We Collect It</th>
+<th style="text-align:left">Insights &amp; Tuning Actions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_thread_time_seconds_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>thread</code>, <code>state</code> (<code>busy</code>, <code>starved</code>, <code>backpressured</code>)</td>
+<td style="text-align:left">Cumulative seconds each worker thread spent doing active work (<code>busy</code>), waiting on upstream input (<code>starved</code>), or blocked pushing to a full downstream queue (<code>backpressured</code>).</td>
+<td style="text-align:left">Core USE-method bottleneck detector across the multi-threaded pipeline.</td>
+<td style="text-align:left">Immediately identifies the true bottleneck stage: a thread with <code>busy ≈ 100%</code> and <code>backpressured ≈ 0%</code> (e.g., <code>gpu_decode_worker</code>) is the system throughput limit; <code>backpressured &gt; 10%</code> means the <em>next</em> stage downstream is saturated; <code>starved ≈ 100%</code> means the stage is fast and waiting on upstream work.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_thread_jobs_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>thread</code></td>
+<td style="text-align:left">Total discrete jobs completed by each worker thread (actual <code>ffprobe</code> calls, video decodes, dHash batches, pair evaluations, SQLite commits).</td>
+<td style="text-align:left">Enables both wall-clock throughput (<code>rate(...)</code>) and active throughput (<code>jobs / busy_seconds</code>).</td>
+<td style="text-align:left">Reveals true processing capacity per stage (e.g., <code>pair_evaluator_pass2</code> processing <code>~5,000 pairs/s</code> when active even if wall rate is <code>22/hour</code>).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_thread_errors_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>thread</code></td>
+<td style="text-align:left">Count of errors handled by each thread (corrupt media files, <code>ffprobe</code> failures, decode errors, DB open errors).</td>
+<td style="text-align:left">Surfaces silent file corruption or driver issues early.</td>
+<td style="text-align:left">Rising <code>ffprobe_workers</code> or <code>cpu_decode_worker</code> errors point to bad sectors, permissions, or truncated files on a specific volume.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_thread_job_duration_seconds</code> (<code>histogram</code>)</td>
+<td style="text-align:left"><code>thread</code>, <code>le</code> (24 buckets)</td>
+<td style="text-align:left">Per-job execution latency distribution (<code>_bucket</code>, <code>_sum</code>, <code>_count</code>).</td>
+<td style="text-align:left">Captures tail latency (<code>p50</code>, <code>p95</code>, <code>p99</code>) that averages hide.</td>
+<td style="text-align:left">Distinguishes normal 60s prefix decodes (<code>~8s</code>) from multi-hour 4K H.265 outliers (<code>300s+</code>) and ensures <code>cpu_dhash_worker</code> stays in sub-millisecond range.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="63-per-volume-hdd-probing-ffprobe-bitrate-telemetry">6.3 Per-Volume HDD Probing &amp; FFprobe Bitrate Telemetry</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Metric Name &amp; Type</th>
+<th style="text-align:left">Labels</th>
+<th style="text-align:left">What It Means</th>
+<th style="text-align:left">Why We Collect It</th>
+<th style="text-align:left">Insights &amp; Tuning Actions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_volume_files_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>dev_id</code>, <code>outcome</code> (<code>probed</code>, <code>sqlite_hit</code>, <code>bitrate_reprobe</code>, <code>skipped_error</code>)</td>
+<td style="text-align:left">Files processed per physical disk device ID broken down by fresh <code>ffprobe</code>, SQLite cache hit, on-demand 0-bitrate re-probe, or error.</td>
+<td style="text-align:left">Separates cold HDD probing from warm SQLite resumes per physical drive.</td>
+<td style="text-align:left">Confirms resume efficiency (e.g., <code>100% sqlite_hit</code>), tracks one-time bitrate backfill progress (<code>bitrate_reprobe</code>), and isolates failing drives (<code>skipped_error</code>).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_volume_blake3_bytes_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>dev_id</code></td>
+<td style="text-align:left">Total file sample bytes (up to 192 KB/file) read for <code>BLAKE3</code> exact-size collision hashing per drive.</td>
+<td style="text-align:left">Quantifies extra disk reads triggered by same-size files.</td>
+<td style="text-align:left">Verifies BLAKE3 pre-filtering stays lightweight (typically a few MB total).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_volume_ffprobe_duration_seconds</code> (<code>histogram</code>)</td>
+<td style="text-align:left"><code>dev_id</code>, <code>le</code></td>
+<td style="text-align:left">Actual <code>ffprobe</code> subprocess header-read latency per physical HDD <code>dev_id</code>.</td>
+<td style="text-align:left">Measures real platter seek + header parse latency per drive without contamination from microsecond SQLite cache hits.</td>
+<td style="text-align:left">Spots slow USB bridges, SMR HDD stalls, or head contention (if <code>p95 &gt; 200ms</code>, keep <code>--hdd-concurrency 1</code>).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_volume_sqlite_lookup_duration_seconds</code> (<code>histogram</code>)</td>
+<td style="text-align:left"><code>dev_id</code>, <code>le</code></td>
+<td style="text-align:left">SQLite3 WAL cache lookup latency (<code>get_compact_file_record</code>) per volume.</td>
+<td style="text-align:left">Tracks warm-resume read performance independently from <code>ffprobe</code>.</td>
+<td style="text-align:left">Verifies SQLite index lookups stay in the <code>15–50µs</code> range; spikes indicate DB page cache pressure or slow states storage.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_ffprobe_bitrate_source_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>stream</code> (<code>video</code>, <code>audio</code>), <code>source</code> (<code>stream</code>, <code>tag_bps</code>, <code>container_fallback</code>, <code>size_fallback</code>, <code>missing</code>)</td>
+<td style="text-align:left">Counts how <code>video_bitrate_bps</code> and <code>audio_bitrate_bps</code> were resolved across containers.</td>
+<td style="text-align:left">Validates bitrate data quality across heterogeneous <code>.mp4</code>, <code>.mkv</code>, <code>.avi</code>, <code>.wmv</code>, and <code>.webm</code> archives.</td>
+<td style="text-align:left">Shows what share of files had exact stream metadata (<code>stream</code> / MKV <code>tag_bps</code>) vs. estimated (<code>container_fallback</code> / <code>size_fallback</code>) vs. missing audio bitrates.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="64-video-decode-engine-pure-rust-98-dhash-metrics">6.4 Video Decode Engine &amp; Pure-Rust <code>9×8</code> dHash Metrics</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Metric Name &amp; Type</th>
+<th style="text-align:left">Labels</th>
+<th style="text-align:left">What It Means</th>
+<th style="text-align:left">Why We Collect It</th>
+<th style="text-align:left">Insights &amp; Tuning Actions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_decode_video_seconds_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>engine</code> (<code>gpu</code>, <code>cpu</code>), <code>codec</code>, <code>kind</code> (<code>sparse5</code>, <code>prefix60</code>, <code>dense</code>)</td>
+<td style="text-align:left">Cumulative seconds of video content decoded per engine, codec, and stage.</td>
+<td style="text-align:left">Numerator for exact realtime decode speed calculation.</td>
+<td style="text-align:left">Quantifies total media hours decoded (e.g., 100+ hours of H.265 video scanned).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_decode_wall_seconds_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>engine</code>, <code>codec</code>, <code>kind</code></td>
+<td style="text-align:left">Cumulative wall-clock seconds spent decoding per engine, codec, and stage.</td>
+<td style="text-align:left">Denominator for realtime factor: <code>decode_video_seconds_total / decode_wall_seconds_total</code>.</td>
+<td style="text-align:left">Directly reveals decode throughput in <code>× realtime</code> per codec (e.g., <code>H264 27.3×</code> vs. <code>H265 8.0×</code>), highlighting which codecs dominate wall time.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_decode_frames_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>engine</code>, <code>codec</code>, <code>kind</code></td>
+<td style="text-align:left">Total decoded frames emitted by FFmpeg per engine/codec/kind.</td>
+<td style="text-align:left">Measures exact frame volume across sparse, 60s prefix, and full dense stages.</td>
+<td style="text-align:left">Shows whether <code>dense</code> or <code>prefix60</code> accounts for the majority of decoded frames.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_gpu_hw_scale_fallbacks_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>codec</code></td>
+<td style="text-align:left">Number of GPU-decoded files that had to fall back from GPU-side scaling (e.g., <code>scale_vt</code>) to CPU <code>scale=72:72</code>.</td>
+<td style="text-align:left">Detects unexpected GPU filtergraph failures (e.g., 10-bit pixel format quirks).</td>
+<td style="text-align:left">Non-zero values warn that full-resolution frames crossed GPU→CPU memory, increasing RAM bandwidth and CPU usage.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_gpu_to_cpu_routes_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>codec</code>, <code>reason</code> (<code>legacy_codec</code>, <code>codec_rejected</code>)</td>
+<td style="text-align:left">Files routed from GPU to <code>cpu-decode-worker</code> either proactively (<code>legacy_codec</code> like WMV/MPEG4) or after per-file GPU rejection (<code>codec_rejected</code>).</td>
+<td style="text-align:left">Tracks how much work spills onto CPU software decoders.</td>
+<td style="text-align:left">If <code>&gt; 15%</code> of jobs route to CPU (flagged by Bottleneck Advisor), reveals codecs that may benefit from transcoding or CPU thread tuning.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_dhash_frames_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>path</code> (<code>integer_exact</code>, <code>fractional</code>)</td>
+<td style="text-align:left">Frames hashed via the fast exact integer <code>8×9</code> block-average path (<code>72×72</code>) vs. fractional fallback.</td>
+<td style="text-align:left">Confirms the <code>72×72</code> optimization is actually engaged.</td>
+<td style="text-align:left">Should be 100% <code>integer_exact</code>; any <code>fractional</code> count means <code>hw_scale_width</code>/<code>hw_scale_height</code> in <code>dedup_config.yaml</code> isn't a multiple of <code>9×8</code>.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_dhash_frame_duration_seconds</code> (<code>histogram</code>)</td>
+<td style="text-align:left"><code>le</code></td>
+<td style="text-align:left">Per-frame pure-Rust <code>9×8</code> downscale + 64-bit dHash compute duration.</td>
+<td style="text-align:left">Ensures perceptual hashing stays orders of magnitude faster than decoding.</td>
+<td style="text-align:left">Typically <code>&lt; 5µs/frame</code>; confirms CPU hashing will never bottleneck <code>gpu_decode_worker</code>.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="65-bounded-queues-in-flight-memory-lru-caches">6.5 Bounded Queues, In-Flight Memory &amp; LRU Caches</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Metric Name &amp; Type</th>
+<th style="text-align:left">Labels</th>
+<th style="text-align:left">What It Means</th>
+<th style="text-align:left">Why We Collect It</th>
+<th style="text-align:left">Insights &amp; Tuning Actions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_channel_depth</code> (<code>gauge</code>)</td>
+<td style="text-align:left"><code>channel</code> (<code>stage_frames</code>, <code>eval_pairs</code>, <code>sqlite_pending</code>)</td>
+<td style="text-align:left">Current live queue occupancy for the 3 internal handoff channels.</td>
+<td style="text-align:left">Real-time queue saturation visibility during long runs.</td>
+<td style="text-align:left">Sustained <code>stage_frames == 16</code> indicates <code>cpu_dhash_worker</code> bottleneck; rising <code>sqlite_pending</code> indicates disk commit lag.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_channel_depth_peak</code> (<code>gauge</code>)</td>
+<td style="text-align:left"><code>channel</code></td>
+<td style="text-align:left">High-water mark occupancy reached during the entire run.</td>
+<td style="text-align:left">Captures transient burst spikes even between Prometheus scrapes.</td>
+<td style="text-align:left">Validates that <code>sync_channel(16)</code> provides plenty of headroom without wasting RAM.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_inflight_luma_bytes</code> &amp; <code>rusty_dedup_inflight_luma_bytes_peak</code> (<code>gauge</code>)</td>
+<td style="text-align:left"><em>(none)</em></td>
+<td style="text-align:left">Current and peak RAM bytes held in raw <code>72×72</code> luma buffers inside <code>stage_channel(16)</code>.</td>
+<td style="text-align:left">Verifies memory safety on multi-hour videos.</td>
+<td style="text-align:left">Confirms peak staged frame memory stays tiny (e.g., ~25 MB vs. gigabytes without GPU <code>72×72</code> downscaling).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_lru_cache_ops_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>cache</code> (<code>prefix</code>, <code>dense</code>), <code>outcome</code> (<code>hit</code>, <code>sqlite_reload</code>, <code>miss_decode</code>, <code>eviction</code>)</td>
+<td style="text-align:left">Operations on the two 2,000-entry <code>BoundedHashCache</code> LRUs.</td>
+<td style="text-align:left">Measures cache effectiveness and detects LRU thrashing.</td>
+<td style="text-align:left">High <code>eviction</code> + <code>sqlite_reload</code> with hit rate <code>&lt; 80%</code> (flagged by Bottleneck Advisor) indicates <code>HASH_LRU_CAPACITY</code> should be raised above <code>2000</code>.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="66-duplicate-funnel-work-avoided-sqlite3-wal-process-resources">6.6 Duplicate Funnel, Work Avoided, SQLite3 WAL &amp; Process Resources</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Metric Name &amp; Type</th>
+<th style="text-align:left">Labels</th>
+<th style="text-align:left">What It Means</th>
+<th style="text-align:left">Why We Collect It</th>
+<th style="text-align:left">Insights &amp; Tuning Actions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_funnel_pairs_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>stage</code> (<code>pass1_strong_confirmed</code>, <code>pass1_conflict_rejected</code>, <code>pass2_sqlite_recovered</code>, <code>pass2_transitive_skip</code>, <code>pass2_blake3_exact</code>, <code>pass2_stage_b_rejected</code>, <code>pass2_stage_c_60s_rejected</code>, <code>pass2_stage_e_confirmed</code>, <code>pass2_stage_e_distinct</code>)</td>
+<td style="text-align:left">Number of candidate pairs resolved at every stage of the duplicate detection funnel.</td>
+<td style="text-align:left">Quantifies the exact pruning power of each cheap heuristic gate.</td>
+<td style="text-align:left">Shows what percentage of pairs are eliminated by Stage B sparse screening (<code>~99%+</code>) and Stage C 60s early-exit before reaching full 1-fps decode.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_video_seconds_avoided_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>stage</code> (<code>pass1_isolated</code>, <code>pass1_strong</code>, <code>stage_b_sparse</code>, <code>stage_c_60s</code>)</td>
+<td style="text-align:left">Estimated video seconds spared from full 1-fps decoding by each short-circuit gate.</td>
+<td style="text-align:left">Quantifies ROI of the algorithmic funnel in concrete hours saved.</td>
+<td style="text-align:left">Demonstrates massive compute savings (e.g., <code>76,000+</code> hours of unnecessary video decoding avoided in a single run).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_sqlite_commits_total</code> &amp; <code>rusty_dedup_sqlite_mutations_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><em>(none)</em></td>
+<td style="text-align:left">Total batched WAL transactions committed and total row mutations persisted.</td>
+<td style="text-align:left">Tracks write amplification and batching efficiency (<code>mutations / commits</code>).</td>
+<td style="text-align:left">High average batch size (<code>100–500</code>) confirms <code>AsyncDbWriter</code> is amortizing <code>fsync</code> overhead effectively.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_sqlite_commit_duration_seconds</code> (<code>histogram</code>)</td>
+<td style="text-align:left"><code>le</code></td>
+<td style="text-align:left">Latency distribution of batched SQLite3 WAL transaction commits.</td>
+<td style="text-align:left">Detects slow state storage (e.g., putting <code>--states-dir</code> on a spinning HDD or network mount).</td>
+<td style="text-align:left">If <code>p99 &gt; 200ms</code> (flagged by Bottleneck Advisor), move <code>--states-dir</code> to a local internal SSD/NVMe.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_sqlite_file_bytes</code> (<code>gauge</code>)</td>
+<td style="text-align:left"><code>kind</code> (<code>db</code>, <code>wal</code>)</td>
+<td style="text-align:left">On-disk size in bytes of <code>rusty_session_{id}.db</code> and its <code>-wal</code> journal file.</td>
+<td style="text-align:left">Monitors state store growth and WAL checkpoint health.</td>
+<td style="text-align:left">Ensures <code>-wal</code> does not grow unboundedly and drops to <code>0</code> after clean <code>PRAGMA wal_checkpoint(TRUNCATE)</code>.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_process_max_rss_bytes</code> (<code>gauge</code>)</td>
+<td style="text-align:left"><em>(none)</em></td>
+<td style="text-align:left">Peak resident set size (RSS) of the <code>rusty_dedup</code> process via Unix <code>getrusage(RUSAGE_SELF)</code>.</td>
+<td style="text-align:left">Verifies flat bounded RAM across 300K-file scans.</td>
+<td style="text-align:left">Confirms zero memory leaks (e.g., ~120 MB peak RSS over a 12.5-hour run).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_process_cpu_seconds_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>target</code> (<code>rust_self</code>, <code>ffmpeg_children</code>), <code>mode</code> (<code>user</code>, <code>sys</code>)</td>
+<td style="text-align:left">Cumulative CPU time consumed by Rust itself vs. reaped <code>ffmpeg</code>/<code>ffprobe</code> child processes (<code>getrusage</code>).</td>
+<td style="text-align:left">Separates Rust coordinator overhead from FFmpeg media decode CPU cost.</td>
+<td style="text-align:left">Typically confirms Rust uses <code>&lt; 1%</code> of total CPU (<code>65s</code> Rust vs. <code>9,646s</code> FFmpeg), proving zero Rust CPU bottleneck.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3 id="layer-2-external-os-kernel-thread-child-process-metrics-scriptsrusty_dedup_metrics_harnesspy">Layer 2 — External OS-Kernel Thread &amp; Child Process Metrics (<code>scripts/rusty_dedup_metrics_harness.py</code>)</h3>
+<p>All Layer 2 metrics carry unified <code>nodename</code> and <code>host_os</code> labels (matching <code>rusty_h265_converter</code> Grafana dashboards).</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Metric Name &amp; Type</th>
+<th style="text-align:left">Labels</th>
+<th style="text-align:left">What It Means</th>
+<th style="text-align:left">Why We Collect It</th>
+<th style="text-align:left">Insights &amp; Tuning Actions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_harness_target_alive</code> (<code>gauge</code>, <code>0</code> or <code>1</code>)</td>
+<td style="text-align:left"><code>nodename</code>, <code>host_os</code>, <code>pid</code></td>
+<td style="text-align:left">Whether the monitored <code>rusty_dedup</code> PID is currently running (<code>1</code>) or has exited into the post-exit linger window (<code>0</code>).</td>
+<td style="text-align:left">Alerts when a long overnight run finishes or unexpectedly terminates.</td>
+<td style="text-align:left">Cleanly marks exact run start/end boundaries in Grafana annotations.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_os_thread_cpu_seconds_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>nodename</code>, <code>host_os</code>, <code>thread_name</code>, <code>tid</code>, <code>mode</code> (<code>user</code>, <code>system</code>)</td>
+<td style="text-align:left">Kernel-measured cumulative CPU seconds spent by every individual OS thread inside <code>rusty_dedup</code> (<code>libproc</code> / <code>/proc/task</code> / <code>GetThreadTimes</code>).</td>
+<td style="text-align:left">Independently validates in-process Rust timers from outside the process and separates userspace compute (<code>user</code>) from kernel syscalls (<code>system</code>).</td>
+<td style="text-align:left">High <code>system</code> CPU on <code>sqlite-wal-writer</code> or <code>ffprobe_workers</code> reveals syscall/I/O overhead; near-zero CPU on <code>gpu-decode-worker</code> confirms FFmpeg child does the work while Rust waits on the pipe.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_os_thread_cpu_usage_ratio</code> (<code>gauge</code>)</td>
+<td style="text-align:left"><code>nodename</code>, <code>host_os</code>, <code>thread_name</code>, <code>tid</code></td>
+<td style="text-align:left">Kernel-reported instantaneous per-thread CPU usage ratio (<code>0.0 .. 1.0</code>).</td>
+<td style="text-align:left">Shows live per-thread core saturation without needing <code>rate()</code> windows.</td>
+<td style="text-align:left">Pinpoints whether any single Rust thread is pegging a CPU core during Pass 1 or Pass 2.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_os_thread_state</code> (<code>gauge</code>, <code>1</code>)</td>
+<td style="text-align:left"><code>nodename</code>, <code>host_os</code>, <code>thread_name</code>, <code>tid</code>, <code>state</code> (<code>running</code>, <code>waiting</code>, <code>disk_io</code>, <code>stopped</code>, <code>halted</code>, <code>other</code>)</td>
+<td style="text-align:left">Live OS kernel scheduler state of every thread (<code>TH_STATE_UNINTERRUPTIBLE</code> / Linux <code>D</code> state mapped to <code>disk_io</code>).</td>
+<td style="text-align:left">Reveals <strong>kernel-level uninterruptible disk I/O stalls</strong> that userspace timers cannot distinguish from normal sleep.</td>
+<td style="text-align:left">Threads stuck in <code>state=&quot;disk_io&quot;</code> directly diagnose spinning-HDD stalls, USB enclosure hangs, or APFS/ext4 journal locks.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_os_process_rss_bytes</code> (<code>gauge</code>)</td>
+<td style="text-align:left"><code>nodename</code>, <code>host_os</code>, <code>role</code> (<code>rusty_dedup</code>, <code>ffmpeg</code>, <code>ffprobe</code>, ...)</td>
+<td style="text-align:left">Live resident memory (RSS) of <code>rusty_dedup</code> AND its active child <code>ffmpeg</code>/<code>ffprobe</code> processes combined by role.</td>
+<td style="text-align:left"><code>getrusage(RUSAGE_SELF)</code> in Rust cannot see live child <code>ffmpeg</code> memory; external kernel introspection captures the full process tree's RAM footprint.</td>
+<td style="text-align:left">Detects FFmpeg decoder memory spikes on 4K/8K or high-reference-frame H.265/AV1 clips before macOS/Linux starts swapping.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_os_process_disk_io_bytes_total</code> (<code>counter</code>)</td>
+<td style="text-align:left"><code>nodename</code>, <code>host_os</code>, <code>role</code>, <code>direction</code> (<code>read</code>, <code>write</code>)</td>
+<td style="text-align:left">Cumulative kernel-tracked physical disk bytes read and written by <code>rusty_dedup</code> and active child <code>ffmpeg</code>/<code>ffprobe</code> processes (<code>ri_diskio_bytesread</code> / <code>/proc/&lt;pid&gt;/io</code>).</td>
+<td style="text-align:left">Measures actual storage bandwidth consumed by probing and decoding.</td>
+<td style="text-align:left">Computes true MB/s read throughput from external HDDs (<code>rate(...[1m])</code>) to check if HDD read bandwidth is saturated or throttled by USB/enclosure speed.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_os_child_processes_active</code> (<code>gauge</code>)</td>
+<td style="text-align:left"><code>nodename</code>, <code>host_os</code>, <code>name</code> (<code>ffmpeg</code>, <code>ffprobe</code>)</td>
+<td style="text-align:left">Count of currently running child <code>ffmpeg</code> and <code>ffprobe</code> processes under <code>rusty_dedup</code>.</td>
+<td style="text-align:left">Confirms child subprocess concurrency stays strictly bounded (no zombie/leaked FFmpeg processes).</td>
+<td style="text-align:left">Should stay <code>&lt;= 2</code> for <code>ffmpeg</code> (<code>gpu-decode</code> + <code>cpu-decode</code>) and <code>&lt;= num_volumes * hdd_concurrency</code> for <code>ffprobe</code>.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3 id="layer-3-host-hardware-telemetry-scriptsrusty_dedup_metrics_harnesspy">Layer 3 — Host Hardware Telemetry (<code>scripts/rusty_dedup_metrics_harness.py</code>)</h3>
+<p>Reuses the zero-dependency OS/GPU syscall engine from <code>rusty_h265_metrics_agent.py</code> with identical <code>nodename</code> and <code>host_os</code> labels for seamless Grafana dashboard parity.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Metric Name &amp; Type</th>
+<th style="text-align:left">Labels</th>
+<th style="text-align:left">What It Means</th>
+<th style="text-align:left">Why We Collect It</th>
+<th style="text-align:left">Insights &amp; Tuning Actions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_host_cpu_utilization_ratio</code> (<code>gauge</code>)</td>
+<td style="text-align:left"><code>nodename</code>, <code>host_os</code>, <code>mode</code> (<code>user</code>, <code>system</code>, <code>idle</code>, <code>active</code>)</td>
+<td style="text-align:left">Whole-machine CPU utilization breakdown (<code>0.0 .. 1.0</code>) via Mach <code>host_statistics</code>, <code>/proc/stat</code>, or Win32 <code>GetSystemTimes</code>.</td>
+<td style="text-align:left">Contextualizes <code>rusty_dedup</code> performance against total host CPU pressure (e.g., if <code>rusty_h265_converter</code> or Spotlight is running simultaneously).</td>
+<td style="text-align:left">Determines if host CPU contention is slowing down <code>cpu_decode_worker</code> or FFmpeg demuxing.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_host_load_average</code> (<code>gauge</code>)</td>
+<td style="text-align:left"><code>nodename</code>, <code>host_os</code>, <code>window</code> (<code>1m</code>, <code>5m</code>, <code>15m</code>)</td>
+<td style="text-align:left">System run-queue + uninterruptible disk-wait load average (<code>os.getloadavg()</code>).</td>
+<td style="text-align:left">Standard Unix indicator of CPU + disk I/O queue pressure.</td>
+<td style="text-align:left">High load average alongside low CPU % is a classic signature of external HDD I/O wait saturation.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_host_memory_gb</code> (<code>gauge</code>)</td>
+<td style="text-align:left"><code>nodename</code>, <code>host_os</code>, <code>state</code> (<code>used</code>, <code>free</code>, <code>total</code>, <code>wired</code>, <code>compressed</code>)</td>
+<td style="text-align:left">Host physical memory breakdown in GiB (including macOS <code>wired</code> and <code>compressed</code> VM pools via Mach <code>host_statistics64</code>).</td>
+<td style="text-align:left">Monitors unified-memory pressure on Apple Silicon Macs (where GPU decode surfaces share system RAM).</td>
+<td style="text-align:left">Rising <code>compressed</code> memory warns of memory pressure that could throttle VideoToolbox or cause OS swap thrashing.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_host_gpu_utilization_ratio</code> (<code>gauge</code>)</td>
+<td style="text-align:left"><code>nodename</code>, <code>host_os</code>, <code>gpu</code>, <code>engine</code> (<code>core</code>, <code>decoder</code>, <code>renderer</code>, <code>tiler</code>)</td>
+<td style="text-align:left">Live GPU utilization (<code>0.0 .. 1.0</code>) via macOS <code>IOAccelerator</code> (<code>ioreg</code>) or NVIDIA NVML <code>ctypes</code> (<code>nvmlDeviceGetDecoderUtilization</code>).</td>
+<td style="text-align:left">Proves hardware video decoding is actively utilizing the silicon media/GPU engines.</td>
+<td style="text-align:left">Confirms VideoToolbox/NVDEC utilization during Pass 2; <code>0%</code> GPU utilization while <code>gpu_decode_worker</code> is busy would flag an unexpected decode bottleneck (e.g., HDD read starvation feeding the GPU).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>rusty_dedup_host_gpu_memory_mb</code> (<code>gauge</code>)</td>
+<td style="text-align:left"><code>nodename</code>, <code>host_os</code>, <code>gpu</code>, <code>state</code> (<code>used</code>, <code>total</code>)</td>
+<td style="text-align:left">Live GPU / VRAM (or Apple Silicon allocated accelerator memory) in MiB.</td>
+<td style="text-align:left">Tracks GPU memory headroom alongside other GPU workloads.</td>
+<td style="text-align:left">Ensures <code>rusty_dedup</code>'s <code>72×72</code> GPU surfaces leave plenty of VRAM free even when running alongside encoding or desktop apps.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="7-built-in-apm-bottleneck-advisor-useful-promql-queries">7. Built-In APM Bottleneck Advisor &amp; Useful PromQL Queries</h2>
+<p>At the end of every run, <code>rusty_dedup</code> automatically evaluates 4 heuristic rules in [evaluate_bottleneck_advisor](file:///Users/maildev/coding/rusty_dedup/src/telemetry.rs#L1045-L1104):</p>
+<ol>
+<li><strong><code>gpu_decode_worker</code> backpressured <code>&gt; 10%</code></strong>: Warns <code>cpu_dhash_worker</code> is saturated on <code>sync_channel(16)</code>.</li>
+<li><strong><code>Dense 1-fps LRU</code> evictions <code>&gt; 0</code> and hit rate <code>&lt; 80%</code></strong>: Recommends raising <code>HASH_LRU_CAPACITY</code> above <code>2000</code>.</li>
+<li><strong>SQLite3 WAL commit <code>p99 &gt; 200ms</code></strong>: Recommends moving <code>--states-dir</code> to a local SSD/NVMe.</li>
+<li><strong>GPU→CPU codec routing <code>&gt; 15%</code> of decode jobs</strong>: Reports which legacy/rejected codecs fell back to <code>cpu_decode_worker</code>.</li>
+</ol>
+<h3 id="ready-to-use-grafana-promql-queries">Ready-to-Use Grafana PromQL Queries</h3>
+<pre class="hljs"><code class="language-promql"># 1. Per-thread Busy Utilization (%) over 1m window
+100 * rate(rusty_dedup_thread_time_seconds_total{app=&quot;rusty_dedup&quot;,state=&quot;busy&quot;}[1m])
+  / ignoring(state) group_left
+  sum by (thread) (rate(rusty_dedup_thread_time_seconds_total{app=&quot;rusty_dedup&quot;}[1m]))
+
+# 2. Decode Realtime Speed (x realtime) by Engine &amp; Codec
+rusty_dedup_decode_video_seconds_total{app=&quot;rusty_dedup&quot;}
+  / rusty_dedup_decode_wall_seconds_total{app=&quot;rusty_dedup&quot;}
+
+# 3. GPU Decode p95 Latency (seconds) using the 24-bucket histogram
+histogram_quantile(0.95, sum by (le) (rate(rusty_dedup_thread_job_duration_seconds_bucket{app=&quot;rusty_dedup&quot;,thread=&quot;gpu_decode_worker&quot;}[5m])))
+
+# 4. Per-Volume Actual FFprobe p95 Latency (ms)
+1000 * histogram_quantile(0.95, sum by (le, dev_id) (rate(rusty_dedup_volume_ffprobe_duration_seconds_bucket{app=&quot;rusty_dedup&quot;}[5m])))
+
+# 5. Live External OS-Kernel Thread CPU Rate (from Python Harness)
+rate(rusty_dedup_os_thread_cpu_seconds_total{app=&quot;rusty_dedup&quot;}[1m])
+
+# 6. Total Disk Read Throughput Across rusty_dedup + Child FFmpeg (MB/s)
+sum by (role) (rate(rusty_dedup_os_process_disk_io_bytes_total{app=&quot;rusty_dedup&quot;,direction=&quot;read&quot;}[1m])) / 1048576
+
+# 7. Total Estimated Full-Video Decode Hours Avoided by Funnel
+sum(rusty_dedup_video_seconds_avoided_total{app=&quot;rusty_dedup&quot;}) / 3600
+</code></pre>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:false,theme:window.__mermaidTheme||'default'});window.__renderMermaid=async function(){var prefix='m'+Date.now()+'_';var scale=0.8;var els=document.querySelectorAll('pre.mermaid');for(var i=0;i<els.length;i++){var el=els[i];try{var r=await mermaid.render(prefix+i,el.textContent||'');el.innerHTML=r.svg}catch(e){var msg=(e.message||String(e)).replace(/</g,'&lt;').replace(/>/g,'&gt;');el.innerHTML='<div class="mermaid-error">'+msg+'</div>'}/* Remove temp divs mermaid leaves on body (not cleaned up on error) */document.querySelectorAll('body>[id^="d'+prefix+'"]').forEach(function(x){x.remove()});if(scale>0){var svg=el.querySelector('svg');if(svg){var mw=svg.style.maxWidth;var natW=mw?parseFloat(mw):parseFloat(svg.getAttribute('width'));if(!isNaN(natW)){svg.setAttribute('width',(natW*scale)+'px');svg.style.maxWidth='none';svg.removeAttribute('height');svg.style.height='auto'}}}el.style.visibility='visible'}};window.__renderMermaidDone=window.__renderMermaid();</script>
+
+</body>
+</html>

@@ -1,0 +1,35 @@
+version: 1.0
+attributes:
+  size_in_bytes: lower is better
+  runtime_in_seconds: higher is better
+  video_height: higher is better
+  video_width: higher is better
+  # video_bitrate is weighted double (2.0x) of audio_bitrate (1.0x)
+  video_bitrate: higher is better
+  audio_bitrate: higher is better
+  video_codec:
+    max_score: 11
+    scores:
+      AV1: 11
+      H265: 10
+      HEVC: 10
+      H264: 9
+      VP9: 8
+      VP8: 7
+      WMV: 6
+      DIVX: 5
+      XVID: 5
+      MPEG4: 5
+      WEBM: 4
+  audio_codec:
+    max_score: 11
+    scores:
+      AAC: 10
+      OPUS: 9
+      AC-3: 8
+      AC3: 8
+      EAC3: 8
+      MP3: 7
+      VORBIS: 6
+      FLAC: 5
+      ALAC: 5

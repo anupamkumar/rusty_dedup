@@ -1,0 +1,47 @@
+{
+  "duplicates": [
+    {
+      "dup_group_name": "Artist_One_-_Sunset_Clip==Artist_One_-_Sunset_Clip_copy==994821_random_name==Artist_One_-_Sunset_Clip_lowres",
+      "files": [
+        "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirA/Artist_One_-_Sunset_Clip.mp4",
+        "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirA/subdir1/Artist_One_-_Sunset_Clip_copy.mp4",
+        "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/994821_random_name.mkv",
+        "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/Artist_One_-_Sunset_Clip_lowres.avi"
+      ],
+      "attributes": {
+        "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirA/Artist_One_-_Sunset_Clip.mp4": {
+          "size_in_bytes": 4257816,
+          "runtime_in_seconds": 12,
+          "video_height": 720,
+          "video_width": 1280,
+          "video_codec": "H264",
+          "audio_codec": "AAC"
+        },
+        "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirA/subdir1/Artist_One_-_Sunset_Clip_copy.mp4": {
+          "size_in_bytes": 4257816,
+          "runtime_in_seconds": 12,
+          "video_height": 720,
+          "video_width": 1280,
+          "video_codec": "H264",
+          "audio_codec": "AAC"
+        },
+        "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/994821_random_name.mkv": {
+          "size_in_bytes": 652126,
+          "runtime_in_seconds": 11,
+          "video_height": 480,
+          "video_width": 854,
+          "video_codec": "H265",
+          "audio_codec": "AAC"
+        },
+        "/Users/maildev/.gemini/tasks/c_6cfb6f02247c822f/workspace/test_videos/dirB/Artist_One_-_Sunset_Clip_lowres.avi": {
+          "size_in_bytes": 1646984,
+          "runtime_in_seconds": 12,
+          "video_height": 360,
+          "video_width": 640,
+          "video_codec": "MPEG4",
+          "audio_codec": "MP3"
+        }
+      }
+    }
+  ]
+}

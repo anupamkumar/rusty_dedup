@@ -1,0 +1,60 @@
+version: 1.0
+ffmpeg:
+  # Decode worker threads passed to FFmpeg (`-threads`).
+  # 0 = automatic multi-threading; set to `none` or `null` to use FFmpeg's default.
+  threads: 0
+  # Filter graph threads passed to FFmpeg (`-filter_threads`).
+  # 0 = automatic multi-threading; set to `none` or `null` to use FFmpeg's default.
+  filter_threads: 0
+  # Skip non-video streams during frame extraction to minimize demux/decode overhead.
+  skip_audio: true       # -an
+  skip_subtitles: true   # -sn
+  skip_datastreams: true # -dn
+
+  # Hardware-accelerated video decoding & GPU-side downscaling.
+  # When enabled: true, Step 1 (--config-test) MUST verify a working GPU backend or rusty_dedup
+  # will fast-fail with troubleshooting resources (never silently falls back to CPU).
+  # Set enabled: false to explicitly run on CPU (slower on large/high-res video libraries).
+  hardware_acceleration:
+    enabled: true
+    # Ordered list of GPU hardware backends tested during --config-test (first working backend wins).
+    # Covers Apple, NVIDIA, AMD, Intel, ARM, and Qualcomm GPUs across macOS, Windows, and Linux:
+    # videotoolbox, cuda, d3d12va, d3d11va, qsv, vaapi, dxva2, vulkan, v4l2m2m, rkmpp, mediacodec
+    fallback_order:
+      - videotoolbox
+      - cuda
+      - d3d12va
+      - d3d11va
+      - qsv
+      - vaapi
+      - dxva2
+      - vulkan
+      - v4l2m2m
+      - rkmpp
+      - mediacodec
+    # Linux VAAPI render node (used only when `vaapi` is tested/active; ignored on macOS/Windows).
+    vaapi_device: /dev/dri/renderD128
+    # Target resolution for GPU-side 1-fps downscaling prior to pure-Rust 9x8 dHash.
+    # 72x72 is evenly divisible by both 9 (8px/col) and 8 (9px/row) for exact integer block averaging,
+    # above the 64x64 minimum of strict GPU drivers, and 600x smaller than 1080p (5 KB/frame).
+    hw_scale_width: 72
+    hw_scale_height: 72
+
+telemetry:
+  # Enable lock-free APM thread-level telemetry & end-of-run dashboard.
+  enabled: true
+  # Live terminal heartbeat interval in seconds (0 = end-of-run APM dashboard only).
+  heartbeat_interval_secs: 30
+  prometheus:
+    # Opt-in local HTTP scrape server address for Prometheus pull scraping (GET /metrics),
+    # e.g. `127.0.0.1:9464`. Set to `none` (default) to disable the HTTP scrape server.
+    listen_addr: 0.0.0.0:9185
+    # Opt-in local HTTP Prometheus Pushgateway base URL for periodic + guaranteed final push,
+    # e.g. `http://127.0.0.1:9091`. Set to `none` (default) to disable push mode.
+    pushgateway_url: none
+    # Interval in seconds for Pushgateway pushes (also pushes once immediately before exit).
+    push_interval_secs: 15
+    # Prometheus job label (`job="<job_name>"`) used for Pushgateway grouping key.
+    job_name: rusty_dedup
+    # Optional path to atomically write a `.prom` file for node_exporter textfile collector.
+    textfile_path: none
