@@ -1,0 +1,37 @@
+name: m2cb
+
+on:
+  push:
+    branches: ['**']
+    tags: ['**']
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: m2cb
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CB_PUSH_PK }}
+          CBR: ssh://git@codeberg.org/krazykllh/rusty_dedup.git
+          OLD_EMAIL: anu
+          NEW_NAME: krazykllh
+          NEW_EMAIL: krazykllh@tuta.com
+        run: |
+          FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f --env-filter '
+              export GIT_AUTHOR_NAME="$NEW_NAME"
+              export GIT_AUTHOR_EMAIL="$NEW_EMAIL"
+              export GIT_COMMITTER_NAME="$NEW_NAME"
+              export GIT_COMMITTER_EMAIL="$NEW_EMAIL"
+          ' --tag-name-filter cat -- --all
+
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 codeberg.org >> ~/.ssh/known_hosts
+          git push --prune "$CBR" +refs/remotes/origin/*:refs/heads/* +refs/tags/*:refs/tags/*
