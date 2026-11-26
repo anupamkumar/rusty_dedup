@@ -1,8 +1,8 @@
-# `rusty_dedup` & `rusty_clean`
+# Dedup & Organized Vids
 
 **High-performance, GPU-accelerated, crash-recoverable duplicate video discovery, resolution, and observability suite built in Rust.**
 
-`rusty_dedup` finds visually identical and re-encoded duplicate videos across multi-terabyte libraries (**300,000+ videos / ~80 TB**) stored on external spinning HDDs or SSDs—even when filenames, resolutions, containers (`.mp4`, `.mkv`, `.wmv`, `.avi`, `.mov`), or codecs (`H.264`, `H.265/HEVC`, `AV1`, `VP9`, `WMV`) differ. Its companion tool **`rusty_clean`** scores every duplicate group against a customizable YAML rubric (`decision_config.yaml`), keeps the highest-quality copy, deletes inferior duplicates, and either links across directories or consolidates winners and unique files into a single target folder. An optional zero-dependency Python companion (**`scripts/rusty_dedup_metrics_harness.py`**) adds OS-kernel thread introspection and host CPU/RAM/GPU metrics to Prometheus & Grafana.
+`rusty_dedup` finds visually identical and re-encoded duplicate videos across multi-terabyte libraries stored on external spinning HDDs or SSDs—even when filenames, resolutions, containers (`.mp4`, `.mkv`, `.wmv`, `.avi`, `.mov`), or codecs (`H.264`, `H.265/HEVC`, `AV1`, `VP9`, `WMV`) differ. Its companion tool **`rusty_clean`** scores every duplicate group against a customizable YAML rubric (`decision_config.yaml`), keeps the highest-quality copy, deletes inferior duplicates, and either links across directories or consolidates winners and unique files into a single target folder. An optional zero-dependency Python companion (**`scripts/rusty_dedup_metrics_harness.py`**) adds OS-kernel thread introspection and host CPU/RAM/GPU metrics to Prometheus & Grafana.
 
 ---
 
@@ -34,7 +34,27 @@
   - Windows: `winget install Gyan.FFmpeg`
 - **Python 3.9+** *(optional, zero `pip` packages needed)* — only required if you want the external OS-thread & host-hardware Prometheus metrics harness.
 
-### 1. Build Optimized Release Binaries
+
+### OPTION 1:
+#### 1. Download the latest release binary appropriate for your Operating System
+
+#### 2. Download the source-code either by getting the tar.gz/zip or cloning the repo
+
+`git clone https://codeberg.org/krazykllh/rusty_dedup.git`
+
+#### 3. Place and configure `dedup_config.yaml` next to rusty_dedup and rusty_clean binaries. 
+
+#### 4. Verify config-test and verify FFMPEG & GPU Acceleration
+In linux terminal type
+`$ ./rusty_dedup --config-test`
+
+or 
+
+In cmd.exe or powershell.exe type
+`C:\> rusty_dedup --config-test`
+
+### OPTION 2:
+#### 1. Build Optimized Release Binaries
 
 ```bash
 cd /path/to/rusty_dedup
@@ -45,7 +65,7 @@ Compiled binaries are placed in:
 - `target/release/rusty_dedup`
 - `target/release/rusty_clean`
 
-### 2. Verify FFmpeg & GPU Acceleration (`--config-test`)
+#### 2. Verify FFmpeg & GPU Acceleration (`--config-test`)
 
 Run this once to confirm your GPU decoder & `72×72` hardware scaler work against `dedup_config.yaml`:
 
@@ -53,7 +73,7 @@ Run this once to confirm your GPU decoder & `72×72` hardware scaler work agains
 ./target/release/rusty_dedup --config-test
 ```
 
-### 3. Scan for Duplicates (`rusty_dedup`)
+#### 3. Scan for Duplicates (`rusty_dedup`)
 
 **Standard run (standalone):**
 ```bash
@@ -68,7 +88,7 @@ python3 scripts/rusty_dedup_metrics_harness.py -- \
   -o duplicates.json
 ```
 
-### 4. Resolve Duplicates & Consolidate (`rusty_clean`)
+#### 4. Resolve Duplicates & Consolidate (`rusty_clean`)
 
 **Always preview first with `--dry-run`:**
 ```bash
