@@ -50,8 +50,8 @@ In linux terminal type
 
 or 
 
-In cmd.exe or powershell.exe type
-`C:\> rusty_dedup --config-test`
+In Windows cmd.exe or powershell.exe type
+`C:\> rusty_dedup.exe --config-test`
 
 ### OPTION 2:
 #### 1. Build Optimized Release Binaries
